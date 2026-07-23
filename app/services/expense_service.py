@@ -1,6 +1,10 @@
-
 from app.database.models import Expense
-from app.repositories.expense_repository import ExpenseRepository
+from app.domain.expense_validator import (
+    ExpenseValidator,
+)
+from app.repositories.expense_repository import (
+    ExpenseRepository,
+)
 from app.schemas.expense.create import ExpenseCreate
 from app.services.lookup_service import LookupService
 
@@ -10,28 +14,48 @@ class ExpenseService:
         self,
         expense_repository: ExpenseRepository,
         lookup_service: LookupService,
+        validator: ExpenseValidator | None = None,
     ):
         self.expense_repository = expense_repository
         self.lookup_service = lookup_service
-
-    def create_expense(self, data: ExpenseCreate) -> Expense:
-        category = self.lookup_service.get_category(
-            data.category
+        self.validator = (
+            validator
+            if validator is not None
+            else ExpenseValidator()
         )
 
-        payment_method = self.lookup_service.get_payment_method(
-            data.payment_method
+    def create_expense(
+        self,
+        data: ExpenseCreate,
+    ) -> Expense:
+        validated = self.validator.validate(data)
+
+        category = self.lookup_service.get_category(
+            validated.category
+        )
+
+        payment_method = (
+            self.lookup_service
+            .get_payment_method(
+                validated.payment_method
+            )
         )
 
         expense = Expense(
-            purchase_date=data.purchase_date,
-            purchase_place=data.purchase_place,
-            purchase_value=data.purchase_value,
+            purchase_date=validated.purchase_date,
+            purchase_place=validated.purchase_place,
+            purchase_value=float(
+                validated.purchase_value
+            ),
             category_id=category.id,
             payment_method_id=payment_method.id,
-            is_installment=data.is_installment,
-            is_shared=data.is_shared,
-            notes=data.notes,
+            is_installment=(
+                validated.is_installment
+            ),
+            is_shared=validated.is_shared,
+            notes=validated.notes,
         )
 
-        return self.expense_repository.add(expense)
+        return self.expense_repository.add(
+            expense
+        )
