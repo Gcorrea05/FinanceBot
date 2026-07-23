@@ -1,5 +1,6 @@
 from telegram.ext import (
     CommandHandler,
+    ConversationHandler,
     MessageHandler,
 )
 
@@ -19,6 +20,11 @@ def test_finance_bot_registers_handlers():
     )
 
     handlers = bot.application.handlers[0]
+
+    assert isinstance(
+        handlers[0],
+        ConversationHandler,
+    )
 
     assert any(
         isinstance(

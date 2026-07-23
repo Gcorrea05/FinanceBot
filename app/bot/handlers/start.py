@@ -16,14 +16,15 @@ from app.bot.keyboards.main_menu import (
 
 WELCOME_TEXT = (
     "\U0001f4b0 FinanceBot\n\n"
-    "Use o menu para consultar os dados de referencia "
-    "ou iniciar uma operacao."
+    "Use o menu para cadastrar e consultar despesas."
 )
 
 
 HELP_TEXT = (
     "\u2753 Comandos disponiveis\n\n"
     "/start - abrir o menu principal\n"
+    "/gasto - cadastrar uma despesa\n"
+    "/cancelar - cancelar o cadastro atual\n"
     "/categorias - listar categorias\n"
     "/pagamentos - listar formas de pagamento\n"
     "/ajuda - exibir esta ajuda"
@@ -77,8 +78,8 @@ async def add_expense_placeholder(
 
     await message.reply_text(
         text=(
-            "O cadastro guiado de gastos sera "
-            "habilitado no proximo batch."
+            "Use /gasto ou o botao Adicionar gasto "
+            "para iniciar o cadastro."
         ),
         reply_markup=build_main_menu(),
     )
