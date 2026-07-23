@@ -7,6 +7,12 @@ from app.database.session import get_session
 from app.domain.expense_validator import (
     ExpenseValidator,
 )
+from app.domain.installment_plan import (
+    InstallmentPlanBuilder,
+)
+from app.domain.shared_expense import (
+    SharedExpenseSplitter,
+)
 from app.repositories.category_repository import (
     CategoryRepository,
 )
@@ -15,6 +21,9 @@ from app.repositories.expense_repository import (
 )
 from app.repositories.payment_method_repository import (
     PaymentMethodRepository,
+)
+from app.repositories.person_repository import (
+    PersonRepository,
 )
 from app.services.expense_service import ExpenseService
 from app.services.lookup_service import LookupService
@@ -39,6 +48,10 @@ class Container:
             PaymentMethodRepository(session)
         )
 
+        self.person_repository = PersonRepository(
+            session
+        )
+
         self.lookup_service = LookupService(
             category_repository=(
                 self.category_repository
@@ -49,6 +62,12 @@ class Container:
         )
 
         self.expense_validator = ExpenseValidator()
+        self.installment_builder = (
+            InstallmentPlanBuilder()
+        )
+        self.shared_splitter = (
+            SharedExpenseSplitter()
+        )
 
         self.expense_service = ExpenseService(
             expense_repository=(
@@ -56,6 +75,15 @@ class Container:
             ),
             lookup_service=self.lookup_service,
             validator=self.expense_validator,
+            person_repository=(
+                self.person_repository
+            ),
+            installment_builder=(
+                self.installment_builder
+            ),
+            shared_splitter=(
+                self.shared_splitter
+            ),
         )
 
 

@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.exceptions import (
@@ -8,6 +8,9 @@ from app.domain.exceptions import (
 )
 from app.domain.money import MoneyParser
 from app.schemas.expense.create import ExpenseCreate
+from app.schemas.expense.shared_person import (
+    SharedPersonCreate,
+)
 
 
 @dataclass(frozen=True)
@@ -19,7 +22,9 @@ class ValidatedExpense:
     payment_method: str
     is_installment: bool
     installments: int
+    first_installment_due_date: date | None
     is_shared: bool
+    shared_people: tuple[SharedPersonCreate, ...]
     notes: str | None
 
 
@@ -79,9 +84,24 @@ class ExpenseValidator:
             installments=data.installments,
         )
 
+        first_due_date = (
+            self._validate_first_due_date(
+                is_installment=is_installment,
+                purchase_date=purchase_date,
+                value=(
+                    data.first_installment_due_date
+                ),
+            )
+        )
+
         is_shared = self._strict_bool(
             field="is_shared",
             value=data.is_shared,
+        )
+
+        shared_people = self._validate_shared_people(
+            is_shared=is_shared,
+            value=data.shared_people,
         )
 
         notes = self._optional_text(
@@ -98,7 +118,11 @@ class ExpenseValidator:
             payment_method=payment_method,
             is_installment=is_installment,
             installments=installments,
+            first_installment_due_date=(
+                first_due_date
+            ),
             is_shared=is_shared,
+            shared_people=shared_people,
             notes=notes,
         )
 
@@ -126,6 +150,150 @@ class ExpenseValidator:
                 "purchase_value",
                 str(error),
             ) from error
+
+    @staticmethod
+    def _validate_first_due_date(
+        is_installment: bool,
+        purchase_date: datetime,
+        value: object,
+    ) -> date | None:
+        if not is_installment:
+            if value is not None:
+                raise ExpenseValidationError(
+                    "first_installment_due_date",
+                    (
+                        "Uma despesa nao parcelada "
+                        "nao deve possuir vencimento "
+                        "de parcela."
+                    ),
+                )
+
+            return None
+
+        if value is None:
+            return purchase_date.date()
+
+        if isinstance(value, datetime):
+            resolved_date = value.date()
+        elif isinstance(value, date):
+            resolved_date = value
+        else:
+            raise ExpenseValidationError(
+                "first_installment_due_date",
+                "Informe uma data valida.",
+            )
+
+        if resolved_date < purchase_date.date():
+            raise ExpenseValidationError(
+                "first_installment_due_date",
+                (
+                    "O primeiro vencimento nao pode "
+                    "ser anterior a data da compra."
+                ),
+            )
+
+        return resolved_date
+
+    @staticmethod
+    def _validate_shared_people(
+        is_shared: bool,
+        value: object,
+    ) -> tuple[SharedPersonCreate, ...]:
+        if value is None:
+            people: tuple[SharedPersonCreate, ...] = ()
+        elif isinstance(value, tuple):
+            people = value
+        elif isinstance(value, list):
+            people = tuple(value)
+        else:
+            raise ExpenseValidationError(
+                "shared_people",
+                "Informe uma lista valida de pessoas.",
+            )
+
+        if is_shared and not people:
+            raise ExpenseValidationError(
+                "shared_people",
+                (
+                    "Uma despesa compartilhada deve "
+                    "possuir pelo menos uma pessoa."
+                ),
+            )
+
+        if not is_shared and people:
+            raise ExpenseValidationError(
+                "shared_people",
+                (
+                    "Uma despesa nao compartilhada "
+                    "nao deve possuir pessoas."
+                ),
+            )
+
+        return people
+
+    @staticmethod
+    def _strict_bool(
+        field: str,
+        value: object,
+    ) -> bool:
+        if type(value) is not bool:
+            raise ExpenseValidationError(
+                field,
+                "Informe verdadeiro ou falso.",
+            )
+
+        return value
+
+    @classmethod
+    def _validate_installments(
+        cls,
+        is_installment: bool,
+        installments: object,
+    ) -> int:
+        if (
+            isinstance(installments, bool)
+            or not isinstance(installments, int)
+        ):
+            raise ExpenseValidationError(
+                "installments",
+                (
+                    "A quantidade de parcelas "
+                    "deve ser inteira."
+                ),
+            )
+
+        if not is_installment:
+            if installments != 1:
+                raise ExpenseValidationError(
+                    "installments",
+                    (
+                        "Uma despesa nao parcelada "
+                        "deve possuir exatamente "
+                        "1 parcela."
+                    ),
+                )
+
+            return 1
+
+        if installments < 2:
+            raise ExpenseValidationError(
+                "installments",
+                (
+                    "Uma despesa parcelada deve possuir "
+                    "pelo menos 2 parcelas."
+                ),
+            )
+
+        if installments > cls.MAX_INSTALLMENTS:
+            raise ExpenseValidationError(
+                "installments",
+                (
+                    "A quantidade maxima permitida e "
+                    f"{cls.MAX_INSTALLMENTS} parcelas."
+                ),
+            )
+
+        return installments
 
     @classmethod
     def _required_text(
@@ -198,66 +366,6 @@ class ExpenseValidator:
             )
 
         return normalized
-
-    @staticmethod
-    def _strict_bool(
-        field: str,
-        value: object,
-    ) -> bool:
-        if type(value) is not bool:
-            raise ExpenseValidationError(
-                field,
-                "Informe verdadeiro ou falso.",
-            )
-
-        return value
-
-    @classmethod
-    def _validate_installments(
-        cls,
-        is_installment: bool,
-        installments: object,
-    ) -> int:
-        if (
-            isinstance(installments, bool)
-            or not isinstance(installments, int)
-        ):
-            raise ExpenseValidationError(
-                "installments",
-                "A quantidade de parcelas deve ser inteira.",
-            )
-
-        if not is_installment:
-            if installments != 1:
-                raise ExpenseValidationError(
-                    "installments",
-                    (
-                        "Uma despesa nao parcelada "
-                        "deve possuir exatamente 1 parcela."
-                    ),
-                )
-
-            return 1
-
-        if installments < 2:
-            raise ExpenseValidationError(
-                "installments",
-                (
-                    "Uma despesa parcelada deve possuir "
-                    "pelo menos 2 parcelas."
-                ),
-            )
-
-        if installments > cls.MAX_INSTALLMENTS:
-            raise ExpenseValidationError(
-                "installments",
-                (
-                    "A quantidade maxima permitida e "
-                    f"{cls.MAX_INSTALLMENTS} parcelas."
-                ),
-            )
-
-        return installments
 
     @classmethod
     def _normalize_whitespace(
