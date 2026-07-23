@@ -1,0 +1,43 @@
+FinanceBot - Roadmap Completo
+
+FASE 1 — Fundação - Estrutura do projeto - Configuração (.env) -
+SQLite + SQLAlchemy - Models e relacionamentos - Repository Pattern -
+Services - Seeds automáticas
+
+FASE 2 — Camada de Domínio - Validação de gastos - Parcelamentos -
+Gastos divididos - Regras de negócio centralizadas
+
+FASE 3 — Bot do Telegram - /start - Menus com botões -
+ConversationHandler - Cadastro guiado de gastos - Cancelar, voltar e
+confirmar
+
+FASE 4 — Consultas - Saldo - Últimos gastos - Buscar por categoria -
+Buscar por estabelecimento - Parcelas - Pendências
+
+FASE 5 — Orçamento - Meta mensal - Salário - Reserva financeira - Limite
+diário - Alertas de orçamento
+
+FASE 6 — Relatórios - Gastos por categoria - Evolução mensal - Ranking
+de estabelecimentos - Parcelamentos - Exportação PDF/Excel/CSV
+
+FASE 7 — Importação - CSV - XLSX - OFX - Histórico de importações -
+Deduplicação
+
+FASE 8 — Inteligência - Interpretação de linguagem natural - Sugestão
+automática de categorias - Aprendizado de padrões
+
+FASE 9 — Dashboard Web - FastAPI - React - Gráficos - Filtros
+
+FASE 10 — API REST - CRUD de despesas - Consumo pelo Telegram
+
+FASE 11 — Automatizações - Resumo diário - Resumo semanal - Resumo
+mensal - Alertas de vencimento
+
+FASE 12 — Produção - Docker - Backup - PostgreSQL - Logs - Deploy
+
+FASE 13 — IA - Perguntas em linguagem natural - Projeções -
+Recomendações - Análise de padrões
+
+Próxima etapa de desenvolvimento: 1. Implementar LookupService. 2.
+Normalização de categorias e formas de pagamento. 3. Integrar o bot do
+Telegram. 4. Fluxo completo de cadastro de despesas.
