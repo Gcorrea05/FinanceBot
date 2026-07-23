@@ -1,21 +1,21 @@
-from telegram import KeyboardButton
+from telegram import ReplyKeyboardMarkup
 
 
-def get_main_menu() -> list[list[KeyboardButton]]:
-    """
-    Retorna o teclado principal do FinanceBot.
-    """
+MENU_ADD_EXPENSE = "\u2795 Adicionar gasto"
+MENU_CATEGORIES = "\U0001f4c2 Categorias"
+MENU_PAYMENT_METHODS = "\U0001f4b3 Formas de pagamento"
+MENU_HELP = "\u2753 Ajuda"
 
-    return [
-        [
-            KeyboardButton("💸 Novo gasto"),
-            KeyboardButton("💰 Saldo"),
+
+def build_main_menu() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [MENU_ADD_EXPENSE],
+            [
+                MENU_CATEGORIES,
+                MENU_PAYMENT_METHODS,
+            ],
+            [MENU_HELP],
         ],
-        [
-            KeyboardButton("📋 Consultar gastos"),
-            KeyboardButton("📊 Relatórios"),
-        ],
-        [
-            KeyboardButton("⚙️ Configurações"),
-        ],
-    ]
+        resize_keyboard=True,
+    )
