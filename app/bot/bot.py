@@ -1,3 +1,6 @@
+import logging
+
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -5,38 +8,132 @@ from telegram.ext import (
     filters,
 )
 
-from app.bot.handlers.start import start
-from app.bot.handlers.start import menu_handler
+from app.bot.handlers.error import error_handler
+from app.bot.handlers.reference_data import (
+    list_categories,
+    list_payment_methods,
+)
+from app.bot.handlers.start import (
+    help_command,
+    menu_handler,
+    start,
+    unknown_command,
+)
 from app.config import settings
 
 
-class FinanceBot:
+logger = logging.getLogger(__name__)
 
-    def __init__(self):
+
+class FinanceBot:
+    def __init__(
+        self,
+        token: str | None = None,
+    ):
+        if token is None:
+            resolved_token = (
+                settings.require_telegram_token()
+            )
+        else:
+            resolved_token = token.strip()
+
+        if not resolved_token:
+            raise ValueError(
+                "O token do Telegram nao pode ficar vazio."
+            )
 
         self.application = (
             Application.builder()
-            .token(settings.TELEGRAM_TOKEN)
+            .token(resolved_token)
+            .post_init(self._post_init)
             .build()
         )
 
         self.register_handlers()
 
-    def register_handlers(self):
+    @staticmethod
+    async def _post_init(
+        application: Application,
+    ) -> None:
+        await application.bot.set_my_commands(
+            commands=[
+                BotCommand(
+                    command="start",
+                    description="Abrir o menu principal",
+                ),
+                BotCommand(
+                    command="categorias",
+                    description="Listar categorias",
+                ),
+                BotCommand(
+                    command="pagamentos",
+                    description=(
+                        "Listar formas de pagamento"
+                    ),
+                ),
+                BotCommand(
+                    command="ajuda",
+                    description="Exibir ajuda",
+                ),
+            ]
+        )
+
+    def register_handlers(self) -> None:
+        self.application.add_handler(
+            CommandHandler(
+                command="start",
+                callback=start,
+            )
+        )
 
         self.application.add_handler(
-            CommandHandler("start", start)
+            CommandHandler(
+                command="categorias",
+                callback=list_categories,
+            )
+        )
+
+        self.application.add_handler(
+            CommandHandler(
+                command="pagamentos",
+                callback=list_payment_methods,
+            )
+        )
+
+        self.application.add_handler(
+            CommandHandler(
+                command="ajuda",
+                callback=help_command,
+            )
         )
 
         self.application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                menu_handler,
+                filters=filters.COMMAND,
+                callback=unknown_command,
             )
         )
 
-    def run(self):
+        self.application.add_handler(
+            MessageHandler(
+                filters=(
+                    filters.TEXT
+                    & ~filters.COMMAND
+                ),
+                callback=menu_handler,
+            )
+        )
 
-        print("FinanceBot iniciado.")
+        self.application.add_error_handler(
+            callback=error_handler
+        )
 
-        self.application.run_polling()
+    def run(self) -> None:
+        logger.info(
+            "FinanceBot iniciado."
+        )
+
+        self.application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
