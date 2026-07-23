@@ -1,32 +1,25 @@
+
 from app.database.models import Expense
 from app.repositories.expense_repository import ExpenseRepository
 from app.schemas.expense.create import ExpenseCreate
-
-from app.services.reference_data_service import (
-    ReferenceDataService,
-)
+from app.services.lookup_service import LookupService
 
 
 class ExpenseService:
-
     def __init__(
         self,
         expense_repository: ExpenseRepository,
-        reference_service: ReferenceDataService,
+        lookup_service: LookupService,
     ):
         self.expense_repository = expense_repository
-        self.reference_service = reference_service
+        self.lookup_service = lookup_service
 
-    def create_expense(
-        self,
-        data: ExpenseCreate,
-    ):
-
-        category = self.reference_service.get_category(
+    def create_expense(self, data: ExpenseCreate) -> Expense:
+        category = self.lookup_service.get_category(
             data.category
         )
 
-        payment = self.reference_service.get_payment_method(
+        payment_method = self.lookup_service.get_payment_method(
             data.payment_method
         )
 
@@ -35,7 +28,7 @@ class ExpenseService:
             purchase_place=data.purchase_place,
             purchase_value=data.purchase_value,
             category_id=category.id,
-            payment_method_id=payment.id,
+            payment_method_id=payment_method.id,
             is_installment=data.is_installment,
             is_shared=data.is_shared,
             notes=data.notes,
