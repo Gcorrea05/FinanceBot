@@ -1,10 +1,13 @@
 import type {
+  Expense,
   ExpenseListResponse,
+  ExpenseMutationPayload,
   ExpenseQuery,
   HealthResponse,
   ReceivableDetailResponse,
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
+  ReferenceListResponse,
 } from "./types";
 
 const DEFAULT_API_URL = "http://127.0.0.1:8000/api/v1";
@@ -54,11 +57,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       details = await response.text();
     }
 
-    throw new ApiError(
-      `A API retornou o status ${response.status}.`,
-      response.status,
-      details,
-    );
+    const detailMessage =
+      details && typeof details === "object" && "detail" in details
+        ? String((details as { detail: unknown }).detail)
+        : `A API retornou o status ${response.status}.`;
+
+    throw new ApiError(detailMessage, response.status, details);
   }
 
   if (response.status === 204) {
@@ -81,6 +85,20 @@ function buildQuery(params: ExpenseQuery): string {
   return query ? `?${query}` : "";
 }
 
+function jsonRequest<T>(
+  path: string,
+  method: "POST" | "PUT",
+  payload: ExpenseMutationPayload,
+): Promise<T> {
+  return request<T>(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 export const financeApi = {
   live(): Promise<HealthResponse> {
     return request<HealthResponse>("/health/live");
@@ -90,8 +108,35 @@ export const financeApi = {
     return request<HealthResponse>("/health/ready");
   },
 
+  listCategories(): Promise<ReferenceListResponse> {
+    return request<ReferenceListResponse>("/references/categories");
+  },
+
+  listPaymentMethods(): Promise<ReferenceListResponse> {
+    return request<ReferenceListResponse>("/references/payment-methods");
+  },
+
   listExpenses(params: ExpenseQuery = {}): Promise<ExpenseListResponse> {
     return request<ExpenseListResponse>(`/expenses${buildQuery(params)}`);
+  },
+
+  getExpense(expenseId: number): Promise<Expense> {
+    return request<Expense>(`/expenses/${expenseId}`);
+  },
+
+  createExpense(payload: ExpenseMutationPayload): Promise<Expense> {
+    return jsonRequest<Expense>("/expenses", "POST", payload);
+  },
+
+  updateExpense(
+    expenseId: number,
+    payload: ExpenseMutationPayload,
+  ): Promise<Expense> {
+    return jsonRequest<Expense>(`/expenses/${expenseId}`, "PUT", payload);
+  },
+
+  deleteExpense(expenseId: number): Promise<void> {
+    return request<void>(`/expenses/${expenseId}`, { method: "DELETE" });
   },
 
   listReceivables(): Promise<ReceivableSummaryResponse> {

@@ -1,16 +1,21 @@
 # FinanceBot Web
 
-A interface web complementa o Telegram. O bot continua focado em registro e consulta rapida; o painel web concentra visualizacao e navegacao sobre os dados.
+A interface web complementa o Telegram. O bot continua focado em registro rapido e consulta operacional; o painel web concentra visualizacao e manutencao dos dados.
 
-## Escopo do Batch 9
+## Funcionalidades atuais
 
-- React com TypeScript;
-- Vite como servidor de desenvolvimento e build;
 - dashboard do mes atual;
 - lista de despesas com filtro mensal e paginacao;
+- cadastro de despesas simples, parceladas e compartilhadas;
+- edicao completa de despesas;
+- exclusao mediante confirmacao;
 - valores a receber com baixa de pendencias;
 - tratamento de API indisponivel;
-- testes do cliente HTTP, formatadores e navegacao principal.
+- testes automatizados do cliente HTTP e dos formularios.
+
+## Regra de seguranca da edicao
+
+Uma despesa com parcela marcada como paga ou valor compartilhado marcado como recebido nao pode ser reestruturada. A API retorna conflito para impedir que um historico financeiro ja confirmado seja apagado durante a edicao.
 
 ## Executar localmente
 
@@ -39,4 +44,4 @@ VITE_API_URL=http://127.0.0.1:8000/api/v1
 
 ## Limites atuais
 
-O Batch 9 e deliberadamente consultivo. Cadastro completo, edicao, exclusao e relatorios analiticos entram nos proximos batches.
+Relatorios analiticos, orcamento, importacoes e autenticacao ainda nao fazem parte da interface.

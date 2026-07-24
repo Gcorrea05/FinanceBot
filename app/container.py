@@ -4,127 +4,70 @@ from contextlib import contextmanager
 from sqlalchemy.orm import Session
 
 from app.database.session import get_session
-from app.domain.expense_validator import (
-    ExpenseValidator,
-)
-from app.domain.installment_plan import (
-    InstallmentPlanBuilder,
-)
-from app.domain.shared_expense import (
-    SharedExpenseSplitter,
-)
-from app.repositories.category_repository import (
-    CategoryRepository,
-)
-from app.repositories.expense_repository import (
-    ExpenseRepository,
-)
-from app.repositories.payment_method_repository import (
-    PaymentMethodRepository,
-)
-from app.repositories.person_repository import (
-    PersonRepository,
-)
-from app.repositories.receivable_repository import (
-    ReceivableRepository,
-)
-from app.services.expense_management_service import (
-    ExpenseManagementService,
-)
-from app.services.expense_query_service import (
-    ExpenseQueryService,
-)
+from app.domain.expense_validator import ExpenseValidator
+from app.domain.installment_plan import InstallmentPlanBuilder
+from app.domain.shared_expense import SharedExpenseSplitter
+from app.repositories.category_repository import CategoryRepository
+from app.repositories.expense_repository import ExpenseRepository
+from app.repositories.payment_method_repository import PaymentMethodRepository
+from app.repositories.person_repository import PersonRepository
+from app.repositories.receivable_repository import ReceivableRepository
+from app.services.expense_editor_service import ExpenseEditorService
+from app.services.expense_management_service import ExpenseManagementService
+from app.services.expense_query_service import ExpenseQueryService
 from app.services.expense_service import ExpenseService
 from app.services.lookup_service import LookupService
-from app.services.receivable_service import (
-    ReceivableService,
-)
+from app.services.receivable_service import ReceivableService
 
 
 class Container:
-    def __init__(
-        self,
-        session: Session,
-    ):
+    def __init__(self, session: Session):
         self.session = session
 
-        self.expense_repository = ExpenseRepository(
-            session
-        )
-
-        self.category_repository = CategoryRepository(
-            session
-        )
-
-        self.payment_repository = (
-            PaymentMethodRepository(session)
-        )
-
-        self.person_repository = PersonRepository(
-            session
-        )
-
-        self.receivable_repository = (
-            ReceivableRepository(session)
-        )
+        self.expense_repository = ExpenseRepository(session)
+        self.category_repository = CategoryRepository(session)
+        self.payment_repository = PaymentMethodRepository(session)
+        self.person_repository = PersonRepository(session)
+        self.receivable_repository = ReceivableRepository(session)
 
         self.lookup_service = LookupService(
-            category_repository=(
-                self.category_repository
-            ),
-            payment_method_repository=(
-                self.payment_repository
-            ),
+            category_repository=self.category_repository,
+            payment_method_repository=self.payment_repository,
         )
 
         self.expense_validator = ExpenseValidator()
-        self.installment_builder = (
-            InstallmentPlanBuilder()
-        )
-        self.shared_splitter = (
-            SharedExpenseSplitter()
-        )
+        self.installment_builder = InstallmentPlanBuilder()
+        self.shared_splitter = SharedExpenseSplitter()
 
         self.expense_service = ExpenseService(
-            expense_repository=(
-                self.expense_repository
-            ),
+            expense_repository=self.expense_repository,
             lookup_service=self.lookup_service,
             validator=self.expense_validator,
-            person_repository=(
-                self.person_repository
-            ),
-            installment_builder=(
-                self.installment_builder
-            ),
-            shared_splitter=(
-                self.shared_splitter
-            ),
+            person_repository=self.person_repository,
+            installment_builder=self.installment_builder,
+            shared_splitter=self.shared_splitter,
         )
 
-        self.expense_query_service = (
-            ExpenseQueryService(
-                expense_repository=(
-                    self.expense_repository
-                )
-            )
+        self.expense_editor_service = ExpenseEditorService(
+            expense_repository=self.expense_repository,
+            lookup_service=self.lookup_service,
+            validator=self.expense_validator,
+            person_repository=self.person_repository,
+            installment_builder=self.installment_builder,
+            shared_splitter=self.shared_splitter,
         )
 
-        self.expense_management_service = (
-            ExpenseManagementService(
-                expense_repository=(
-                    self.expense_repository
-                )
-            )
+        self.expense_query_service = ExpenseQueryService(
+            expense_repository=self.expense_repository
+        )
+
+        self.expense_management_service = ExpenseManagementService(
+            expense_repository=self.expense_repository
         )
 
         self.receivable_service = ReceivableService(
-            receivable_repository=(
-                self.receivable_repository
-            ),
-            person_repository=(
-                self.person_repository
-            ),
+            receivable_repository=self.receivable_repository,
+            person_repository=self.person_repository,
         )
 
 
@@ -134,10 +77,8 @@ def container_context() -> Iterator[Container]:
 
     try:
         yield Container(session)
-
     except Exception:
         session.rollback()
         raise
-
     finally:
         session.close()

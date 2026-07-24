@@ -3,9 +3,13 @@ import { formatCurrency, formatDate } from "../utils/formatters";
 
 interface ExpenseTableProps {
   expenses: Expense[];
+  onEdit?: (expense: Expense) => void;
+  onDelete?: (expense: Expense) => void;
 }
 
-export function ExpenseTable({ expenses }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, onEdit, onDelete }: ExpenseTableProps) {
+  const showActions = Boolean(onEdit || onDelete);
+
   return (
     <div className="table-wrapper">
       <table>
@@ -16,6 +20,7 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
             <th>Categoria</th>
             <th>Pagamento</th>
             <th className="align-right">Valor</th>
+            {showActions ? <th className="align-right">Acoes</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -34,6 +39,30 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
               <td className="align-right strong-cell">
                 {formatCurrency(expense.purchase_value)}
               </td>
+              {showActions ? (
+                <td className="align-right">
+                  <div className="table-actions">
+                    {onEdit ? (
+                      <button
+                        className="secondary-button compact"
+                        onClick={() => onEdit(expense)}
+                        type="button"
+                      >
+                        Editar
+                      </button>
+                    ) : null}
+                    {onDelete ? (
+                      <button
+                        className="danger-button compact"
+                        onClick={() => onDelete(expense)}
+                        type="button"
+                      >
+                        Excluir
+                      </button>
+                    ) : null}
+                  </div>
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

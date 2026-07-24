@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { financeApi } from "./api/client";
 import { App } from "./App";
 
+
 vi.mock("./api/client", async () => {
   const actual = await vi.importActual<typeof import("./api/client")>("./api/client");
 
@@ -12,7 +13,12 @@ vi.mock("./api/client", async () => {
     ...actual,
     financeApi: {
       ready: vi.fn(),
+      listCategories: vi.fn(),
+      listPaymentMethods: vi.fn(),
       listExpenses: vi.fn(),
+      createExpense: vi.fn(),
+      updateExpense: vi.fn(),
+      deleteExpense: vi.fn(),
       listReceivables: vi.fn(),
       listPersonReceivables: vi.fn(),
       settleReceivable: vi.fn(),
@@ -24,6 +30,8 @@ const mockedApi = vi.mocked(financeApi);
 
 beforeEach(() => {
   mockedApi.ready.mockResolvedValue({ status: "ready" });
+  mockedApi.listCategories.mockResolvedValue({ items: [{ name: "Mercado" }] });
+  mockedApi.listPaymentMethods.mockResolvedValue({ items: [{ name: "Pix" }] });
   mockedApi.listExpenses.mockResolvedValue({
     items: [],
     total: 0,

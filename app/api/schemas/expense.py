@@ -8,9 +8,7 @@ from pydantic import (
 )
 
 from app.schemas.expense.create import ExpenseCreate
-from app.schemas.expense.shared_person import (
-    SharedPersonCreate,
-)
+from app.schemas.expense.shared_person import SharedPersonCreate
 
 
 class SharedPersonRequest(BaseModel):
@@ -62,62 +60,36 @@ class ExpenseCreateRequest(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_business_shape(
-        self,
-    ):
+    def validate_business_shape(self):
         if self.is_installment:
             if self.installments < 2:
                 raise ValueError(
-                    (
-                        "An installment expense must "
-                        "have at least 2 installments."
-                    )
+                    "An installment expense must have at least 2 installments."
                 )
 
-            if (
-                self.first_installment_due_date
-                is None
-            ):
+            if self.first_installment_due_date is None:
                 raise ValueError(
-                    (
-                        "first_installment_due_date "
-                        "is required."
-                    )
+                    "first_installment_due_date is required."
                 )
         else:
             if self.installments != 1:
                 raise ValueError(
-                    (
-                        "A non-installment expense "
-                        "must have 1 installment."
-                    )
+                    "A non-installment expense must have 1 installment."
                 )
 
-            if (
-                self.first_installment_due_date
-                is not None
-            ):
+            if self.first_installment_due_date is not None:
                 raise ValueError(
-                    (
-                        "first_installment_due_date "
-                        "must be empty."
-                    )
+                    "first_installment_due_date must be empty."
                 )
 
         if self.is_shared:
             if not self.shared_people:
                 raise ValueError(
-                    (
-                        "A shared expense must have "
-                        "at least one participant."
-                    )
+                    "A shared expense must have at least one participant."
                 )
         elif self.shared_people:
             raise ValueError(
-                (
-                    "shared_people must be empty "
-                    "when is_shared is false."
-                )
+                "shared_people must be empty when is_shared is false."
             )
 
         return self
@@ -131,9 +103,7 @@ class ExpenseCreateRequest(BaseModel):
             payment_method=self.payment_method,
             is_installment=self.is_installment,
             installments=self.installments,
-            first_installment_due_date=(
-                self.first_installment_due_date
-            ),
+            first_installment_due_date=self.first_installment_due_date,
             is_shared=self.is_shared,
             shared_people=tuple(
                 SharedPersonCreate(
@@ -144,6 +114,10 @@ class ExpenseCreateRequest(BaseModel):
             ),
             notes=self.notes,
         )
+
+
+class ExpenseUpdateRequest(ExpenseCreateRequest):
+    """Complete replacement payload used by the web editor."""
 
 
 class InstallmentResponse(BaseModel):
