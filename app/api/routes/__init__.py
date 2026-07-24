@@ -1,5 +1,8 @@
 from fastapi import APIRouter
 
+from app.api.routes.budgets import (
+    router as budgets_router,
+)
 from app.api.routes.expenses import (
     router as expenses_router,
 )
@@ -23,6 +26,9 @@ api_router.include_router(
 api_router.include_router(expenses_router)
 api_router.include_router(
     receivables_router
+)
+api_router.include_router(
+    budgets_router
 )
 
 

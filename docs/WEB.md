@@ -1,6 +1,6 @@
 # FinanceBot Web
 
-A interface web complementa o Telegram. O bot continua focado em registro rapido e consulta operacional; o painel web concentra visualizacao e manutencao dos dados.
+A interface web complementa o Telegram. O bot continua focado em registro rapido e consulta operacional; o painel web concentra visualizacao, manutencao e planejamento.
 
 ## Funcionalidades atuais
 
@@ -10,8 +10,21 @@ A interface web complementa o Telegram. O bot continua focado em registro rapido
 - edicao completa de despesas;
 - exclusao mediante confirmacao;
 - valores a receber com baixa de pendencias;
+- planejamento mensal de renda, reserva e limite de gastos;
+- calculo de saldo restante e limite diario;
 - tratamento de API indisponivel;
 - testes automatizados do cliente HTTP e dos formularios.
+
+## Regra do planejamento mensal
+
+O planejamento usa duas referencias de data:
+
+- despesa simples: entra no mes da compra;
+- despesa parcelada: entra no mes de vencimento de cada parcela.
+
+Em despesas compartilhadas, somente a parte do proprietario entra no gasto mensal. Os valores de outras pessoas permanecem na area de valores a receber.
+
+A soma da meta de reserva com o limite de gastos nao pode ultrapassar a renda mensal.
 
 ## Regra de seguranca da edicao
 
@@ -44,4 +57,4 @@ VITE_API_URL=http://127.0.0.1:8000/api/v1
 
 ## Limites atuais
 
-Relatorios analiticos, orcamento, importacoes e autenticacao ainda nao fazem parte da interface.
+Relatorios analiticos, importacoes, autenticacao e automatizacoes ainda nao fazem parte da interface.

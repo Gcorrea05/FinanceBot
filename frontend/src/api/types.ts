@@ -113,3 +113,31 @@ export interface ExpenseQuery {
   month?: number;
   year?: number;
 }
+
+export type BudgetStatus =
+  | "not_configured"
+  | "healthy"
+  | "attention"
+  | "exceeded";
+
+export interface BudgetOverview {
+  year: number;
+  month: number;
+  configured: boolean;
+  monthly_income: string | null;
+  reserve_target: string | null;
+  spending_limit: string | null;
+  spent: string;
+  remaining: string | null;
+  available_after_reserve: string | null;
+  daily_limit: string | null;
+  usage_percent: string | null;
+  remaining_days: number;
+  status: BudgetStatus;
+}
+
+export interface BudgetPlanPayload {
+  monthly_income: string;
+  reserve_target: string;
+  spending_limit: string;
+}

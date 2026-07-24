@@ -1,4 +1,6 @@
 import type {
+  BudgetOverview,
+  BudgetPlanPayload,
   Expense,
   ExpenseListResponse,
   ExpenseMutationPayload,
@@ -85,12 +87,12 @@ function buildQuery(params: ExpenseQuery): string {
   return query ? `?${query}` : "";
 }
 
-function jsonRequest<T>(
+function jsonRequest<TPayload, TResponse>(
   path: string,
   method: "POST" | "PUT",
-  payload: ExpenseMutationPayload,
-): Promise<T> {
-  return request<T>(path, {
+  payload: TPayload,
+): Promise<TResponse> {
+  return request<TResponse>(path, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -125,14 +127,22 @@ export const financeApi = {
   },
 
   createExpense(payload: ExpenseMutationPayload): Promise<Expense> {
-    return jsonRequest<Expense>("/expenses", "POST", payload);
+    return jsonRequest<ExpenseMutationPayload, Expense>(
+      "/expenses",
+      "POST",
+      payload,
+    );
   },
 
   updateExpense(
     expenseId: number,
     payload: ExpenseMutationPayload,
   ): Promise<Expense> {
-    return jsonRequest<Expense>(`/expenses/${expenseId}`, "PUT", payload);
+    return jsonRequest<ExpenseMutationPayload, Expense>(
+      `/expenses/${expenseId}`,
+      "PUT",
+      payload,
+    );
   },
 
   deleteExpense(expenseId: number): Promise<void> {
@@ -153,6 +163,22 @@ export const financeApi = {
     return request<ReceivableSettlementResponse>(
       `/receivables/${receivableId}/settle`,
       { method: "POST" },
+    );
+  },
+
+  getBudget(year: number, month: number): Promise<BudgetOverview> {
+    return request<BudgetOverview>(`/budgets/${year}/${month}`);
+  },
+
+  saveBudget(
+    year: number,
+    month: number,
+    payload: BudgetPlanPayload,
+  ): Promise<BudgetOverview> {
+    return jsonRequest<BudgetPlanPayload, BudgetOverview>(
+      `/budgets/${year}/${month}`,
+      "PUT",
+      payload,
     );
   },
 };

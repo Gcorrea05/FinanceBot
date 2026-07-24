@@ -22,6 +22,8 @@ PROJECT_ROOT = Path(
     __file__
 ).resolve().parents[1]
 
+BASELINE_REVISION = "20260724_0001"
+
 
 def alembic_config() -> Config:
     return Config(
@@ -32,12 +34,17 @@ def alembic_config() -> Config:
     )
 
 
-def schema_differences() -> list[str]:
+def schema_differences(
+    *,
+    excluded_tables: set[str] | None = None,
+) -> list[str]:
     inspector = inspect(engine)
 
     actual_tables = set(
         inspector.get_table_names()
     )
+
+    excluded = excluded_tables or set()
 
     expected_tables = {
         table.name: {
@@ -45,6 +52,7 @@ def schema_differences() -> list[str]:
             for column in table.columns
         }
         for table in Base.metadata.sorted_tables
+        if table.name not in excluded
     }
 
     differences: list[str] = []
@@ -117,6 +125,42 @@ def bootstrap() -> str:
             "at migration head."
         )
 
+    current_tables = set(
+        inspector.get_table_names()
+    )
+
+    if "alembic_version" not in current_tables:
+        differences = schema_differences(
+            excluded_tables={
+                "budgets",
+            }
+        )
+
+        if differences:
+            formatted = "\n".join(
+                f"  - {item}"
+                for item in differences
+            )
+
+            raise RuntimeError(
+                (
+                    "The existing pre-migration "
+                    "database is not compatible "
+                    "with the baseline:\n"
+                    f"{formatted}"
+                )
+            )
+
+        command.stamp(
+            configuration,
+            BASELINE_REVISION,
+        )
+
+    command.upgrade(
+        configuration,
+        "head",
+    )
+
     differences = schema_differences()
 
     if differences:
@@ -127,32 +171,14 @@ def bootstrap() -> str:
 
         raise RuntimeError(
             (
-                "The existing database is not "
+                "The upgraded database is not "
                 "compatible with the current "
                 "models:\n"
                 f"{formatted}"
             )
         )
 
-    current_tables = set(
-        inspect(engine).get_table_names()
-    )
-
-    if "alembic_version" not in current_tables:
-        command.stamp(
-            configuration,
-            "head",
-        )
-
-        return (
-            "Existing database validated and "
-            "stamped at migration head."
-        )
-
-    command.upgrade(
-        configuration,
-        "head",
-    )
+    seed_current_database()
 
     return (
         "Existing database upgraded to "

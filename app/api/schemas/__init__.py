@@ -1,3 +1,7 @@
+from app.api.schemas.budget import (
+    BudgetOverviewResponse,
+    BudgetPlanRequest,
+)
 from app.api.schemas.expense import (
     ExpenseCreateRequest,
     ExpenseListResponse,
@@ -10,6 +14,8 @@ from app.api.schemas.receivable import (
 
 
 __all__ = [
+    "BudgetOverviewResponse",
+    "BudgetPlanRequest",
     "ExpenseCreateRequest",
     "ExpenseListResponse",
     "ExpenseResponse",
