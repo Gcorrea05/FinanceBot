@@ -204,3 +204,66 @@ export interface ReportOverview {
   merchants: ReportMerchantItem[];
   installments: ReportInstallmentItem[];
 }
+
+
+export type ImportRowStatus = "ready" | "duplicate" | "invalid" | "ignored" | "imported";
+
+export type ImportDateFormat = "auto" | "dmy" | "mdy" | "ymd";
+export type ImportDecimalSeparator = "auto" | "comma" | "dot";
+export type ImportAmountMode = "all" | "positive" | "negative";
+
+export interface ImportColumnMapping {
+  sheet_name: string | null;
+  header_row: number | null;
+  data_start_row: number;
+  date_column: number;
+  description_columns: number[];
+  amount_column: number;
+  external_id_column: number | null;
+  date_format: ImportDateFormat;
+  decimal_separator: ImportDecimalSeparator;
+  amount_mode: ImportAmountMode;
+}
+
+export interface ImportInspection {
+  source_type: string;
+  sheets: string[];
+  selected_sheet: string | null;
+  total_rows: number;
+  max_columns: number;
+  rows: string[][];
+  mapping_required: boolean;
+}
+
+export interface ImportRow {
+  id: number;
+  row_number: number;
+  purchase_date: string | null;
+  purchase_place: string | null;
+  purchase_value: string | null;
+  external_id: string | null;
+  status: ImportRowStatus;
+  error_message: string | null;
+  expense_id: number | null;
+}
+
+export interface ImportBatch {
+  id: number;
+  filename: string;
+  source_type: string;
+  status: string;
+  default_category: string;
+  default_payment_method: string;
+  total_rows: number;
+  ready_rows: number;
+  duplicate_rows: number;
+  invalid_rows: number;
+  imported_rows: number;
+  created_at: string;
+  completed_at: string | null;
+  rows: ImportRow[];
+}
+
+export interface ImportHistoryResponse {
+  items: ImportBatch[];
+}

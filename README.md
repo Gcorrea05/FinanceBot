@@ -24,7 +24,8 @@ A interface web concentra visualizacao e manutencao:
 - planejamento mensal de renda, reserva e limite de gastos;
 - calculo de limite diario;
 - relatorios por periodo, categoria e estabelecimento;
-- comparacao mensal e acompanhamento de parcelamentos.
+- comparacao mensal e acompanhamento de parcelamentos;
+- importacao de extratos CSV, XLSX e OFX com deduplicacao.
 
 ## Regra do planejamento
 

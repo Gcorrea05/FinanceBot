@@ -45,6 +45,9 @@ Open:
 - `GET /api/v1/budgets/{year}/{month}`
 - `PUT /api/v1/budgets/{year}/{month}`
 - `GET /api/v1/reports/overview`
+- `POST /api/v1/imports/preview`
+- `POST /api/v1/imports/{batch_id}/confirm`
+- `GET /api/v1/imports`
 
 ## Scope and security
 

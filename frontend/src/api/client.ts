@@ -6,6 +6,10 @@ import type {
   ExpenseMutationPayload,
   ExpenseQuery,
   HealthResponse,
+  ImportBatch,
+  ImportColumnMapping,
+  ImportHistoryResponse,
+  ImportInspection,
   ReceivableDetailResponse,
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
@@ -194,5 +198,51 @@ export const financeApi = {
     return request<ReportOverview>(
       `/reports/overview${buildQuery(params)}`,
     );
+  },
+
+  inspectImport(
+    file: File,
+    sheetName?: string,
+  ): Promise<ImportInspection> {
+    const form = new FormData();
+    form.append("file", file);
+    if (sheetName) {
+      form.append("sheet_name", sheetName);
+    }
+    return request<ImportInspection>("/imports/inspect", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  previewImport(
+    file: File,
+    defaultCategory: string,
+    defaultPaymentMethod: string,
+    mapping?: ImportColumnMapping,
+  ): Promise<ImportBatch> {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("default_category", defaultCategory);
+    form.append("default_payment_method", defaultPaymentMethod);
+    if (mapping) {
+      form.append("mapping_json", JSON.stringify(mapping));
+    }
+    return request<ImportBatch>("/imports/preview", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  confirmImport(batchId: number): Promise<ImportBatch> {
+    return request<ImportBatch>(`/imports/${batchId}/confirm`, { method: "POST" });
+  },
+
+  listImports(): Promise<ImportHistoryResponse> {
+    return request<ImportHistoryResponse>("/imports");
+  },
+
+  getImport(batchId: number): Promise<ImportBatch> {
+    return request<ImportBatch>(`/imports/${batchId}`);
   },
 };

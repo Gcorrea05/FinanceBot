@@ -16,7 +16,8 @@ A interface web complementa o Telegram. O bot continua focado em registro rapido
 - gastos por categoria e ranking de estabelecimentos;
 - acompanhamento de parcelamentos ativos;
 - tratamento de API indisponivel;
-- testes automatizados do cliente HTTP e dos formularios.
+- testes automatizados do cliente HTTP e dos formularios;
+- importacoes CSV, XLSX e OFX com pre-visualizacao e historico.
 
 ## Regra do planejamento mensal
 
@@ -60,7 +61,7 @@ VITE_API_URL=http://127.0.0.1:8000/api/v1
 
 ## Limites atuais
 
-Importacoes, autenticacao e automatizacoes ainda nao fazem parte da interface.
+Autenticacao e automatizacoes ainda nao fazem parte da interface.
 
 
 ## Regra dos relatorios

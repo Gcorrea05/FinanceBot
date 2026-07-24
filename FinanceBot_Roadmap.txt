@@ -49,13 +49,14 @@ BATCH 12 - Relatorios e graficos
 - visao de parcelamentos.
 
 
-PROXIMOS BATCHES
-
 BATCH 13 - Importacoes
 - CSV;
 - XLSX;
 - OFX;
 - deduplicacao e historico.
+
+
+PROXIMOS BATCHES
 
 BATCH 14 - Automatizacoes
 - resumos;

@@ -1,0 +1,62 @@
+.import-form {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  align-items: end;
+  gap: 14px;
+}
+.import-form label { display: grid; gap: 7px; color: #536169; font-size: .84rem; font-weight: 750; }
+.import-form input, .import-form select { width: 100%; padding: 11px 12px; border: 1px solid #cad5d8; border-radius: 10px; background: #fff; }
+.import-summary-heading { align-items: center; }
+.import-metrics { padding: 0 20px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.import-metrics strong { padding: 14px; border: 1px solid #e1e7e8; border-radius: 12px; font-size: 1.25rem; }
+.import-metrics span { display: block; margin-top: 4px; color: #6c787f; font-size: .75rem; font-weight: 650; }
+.import-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; background: #edf1f2; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.import-status.ready { color: #205a49; background: #eaf7f2; }
+.import-status.duplicate { color: #805d16; background: #fff6dc; }
+.import-status.invalid { color: #8f3535; background: #fff0f0; }
+.import-status.imported { color: #24568c; background: #edf5ff; }
+.import-history { padding: 0 20px 20px; display: grid; gap: 10px; }
+.import-history article { padding: 14px; display: flex; justify-content: space-between; gap: 16px; border: 1px solid #e1e7e8; border-radius: 12px; }
+.import-history article div { display: grid; gap: 4px; }
+.import-history article span, td small { display: block; color: #77838a; font-size: .78rem; }
+@media (max-width: 900px) { .import-form { grid-template-columns: 1fr 1fr; } .import-metrics { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .import-form { grid-template-columns: 1fr; } .import-history article { flex-direction: column; } }
+
+.mapping-panel {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.mapping-grid label,
+.mapping-sheet {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mapping-grid small {
+  color: var(--muted-text);
+}
+
+.raw-preview {
+  max-height: 420px;
+}
+
+.raw-preview td,
+.raw-preview th {
+  white-space: nowrap;
+}
+
+.mapped-header-row {
+  font-weight: 700;
+}
+
+.import-status.ignored {
+  opacity: 0.72;
+}
