@@ -72,3 +72,9 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+*.tsbuildinfo
