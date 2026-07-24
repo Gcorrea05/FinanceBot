@@ -17,4 +17,4 @@ def test_current_migration_head():
     }
 
     assert "20260724_0001" in revisions
-    assert "20260724_0002" in revisions
+    assert "20260724_0003" in revisions

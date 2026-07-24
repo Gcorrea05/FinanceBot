@@ -206,7 +206,34 @@ export interface ReportOverview {
 }
 
 
-export type ImportRowStatus = "ready" | "duplicate" | "invalid" | "imported";
+export type ImportRowStatus = "ready" | "duplicate" | "invalid" | "ignored" | "imported";
+
+export type ImportDateFormat = "auto" | "dmy" | "mdy" | "ymd";
+export type ImportDecimalSeparator = "auto" | "comma" | "dot";
+export type ImportAmountMode = "all" | "positive" | "negative";
+
+export interface ImportColumnMapping {
+  sheet_name: string | null;
+  header_row: number | null;
+  data_start_row: number;
+  date_column: number;
+  description_columns: number[];
+  amount_column: number;
+  external_id_column: number | null;
+  date_format: ImportDateFormat;
+  decimal_separator: ImportDecimalSeparator;
+  amount_mode: ImportAmountMode;
+}
+
+export interface ImportInspection {
+  source_type: string;
+  sheets: string[];
+  selected_sheet: string | null;
+  total_rows: number;
+  max_columns: number;
+  rows: string[][];
+  mapping_required: boolean;
+}
 
 export interface ImportRow {
   id: number;

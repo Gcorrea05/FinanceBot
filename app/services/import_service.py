@@ -4,9 +4,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.database.models.import_batch import ImportBatch, ImportRow
-from app.imports.parser import ImportFileError, parse_import_file
+from app.imports.parser import (
+    ImportColumnMapping,
+    ImportFileError,
+    ImportInspection,
+    inspect_import_file,
+    parse_import_file,
+)
 from app.repositories.import_repository import ImportRepository
 from app.schemas.expense.create import ExpenseCreate
+
 if TYPE_CHECKING:
     from app.services.expense_service import ExpenseService
     from app.services.lookup_service import LookupService
@@ -31,6 +38,19 @@ class ImportService:
         self.expense_service = expense_service
         self.lookup_service = lookup_service
 
+    def inspect(
+        self,
+        *,
+        filename: str,
+        content: bytes,
+        sheet_name: str | None = None,
+    ) -> ImportInspection:
+        return inspect_import_file(
+            filename,
+            content,
+            sheet_name=sheet_name,
+        )
+
     def preview(
         self,
         *,
@@ -38,15 +58,16 @@ class ImportService:
         content: bytes,
         default_category: str,
         default_payment_method: str,
+        mapping: ImportColumnMapping | None = None,
     ) -> ImportBatch:
         self.lookup_service.get_category(default_category)
         self.lookup_service.get_payment_method(default_payment_method)
-        parsed = parse_import_file(filename, content)
+        parsed = parse_import_file(filename, content, mapping)
 
         fingerprints = {row.fingerprint for row in parsed.rows if row.fingerprint}
         existing = self.repository.existing_fingerprints(fingerprints)
         seen: set[str] = set()
-        ready = duplicate = invalid = 0
+        ready = duplicate = invalid = ignored = 0
 
         batch = self.repository.add_batch(
             ImportBatch(
@@ -61,7 +82,10 @@ class ImportService:
 
         records: list[ImportRow] = []
         for row in parsed.rows:
-            if not row.valid:
+            if row.ignored:
+                status = "ignored"
+                ignored += 1
+            elif not row.valid:
                 status = "invalid"
                 invalid += 1
             elif row.fingerprint in existing or row.fingerprint in seen:
@@ -85,7 +109,7 @@ class ImportService:
                     status=status,
                     error_message=(
                         row.error_message
-                        if status == "invalid"
+                        if status in {"invalid", "ignored"}
                         else "Transacao duplicada."
                         if status == "duplicate"
                         else None

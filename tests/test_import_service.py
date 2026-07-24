@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from app.imports.parser import ImportColumnMapping
 from app.services.import_service import ImportService
 
 
@@ -46,19 +47,31 @@ class ExpenseServiceStub:
         return SimpleNamespace(id=99)
 
 
-def test_preview_marks_duplicate_inside_same_file():
+def mapping():
+    return ImportColumnMapping(
+        data_start_row=2,
+        date_column=0,
+        description_columns=(1,),
+        amount_column=2,
+        date_format="dmy",
+        decimal_separator="comma",
+    )
+
+
+def test_preview_marks_duplicate_inside_same_file_with_custom_headers():
     repository = RepositoryStub()
     service = ImportService(repository, ExpenseServiceStub(), LookupStub())
     content = (
-        "data;descricao;valor\n"
+        "QUANDO;ONDE;QUANTO\n"
         "24/07/2026;Mercado;10,00\n"
         "24/07/2026;Mercado;10,00\n"
     ).encode("utf-8")
     batch = service.preview(
-        filename="extrato.csv",
+        filename="fatura.csv",
         content=content,
         default_category="Outros",
         default_payment_method="Debito",
+        mapping=mapping(),
     )
     assert batch.ready_rows == 1
     assert batch.duplicate_rows == 1
