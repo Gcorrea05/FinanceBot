@@ -12,6 +12,9 @@ from app.bot.handlers.error import error_handler
 from app.bot.handlers.expense_conversation import (
     build_expense_conversation_handler,
 )
+from app.bot.handlers.receivables import (
+    build_receivables_conversation_handler,
+)
 from app.bot.handlers.reference_data import (
     list_categories,
     list_payment_methods,
@@ -83,6 +86,10 @@ class FinanceBot:
                     ),
                 ),
                 BotCommand(
+                    command="receber",
+                    description="Consultar valores a receber",
+                ),
+                BotCommand(
                     command="ajuda",
                     description="Exibir ajuda",
                 ),
@@ -90,6 +97,10 @@ class FinanceBot:
         )
 
     def register_handlers(self) -> None:
+        self.application.add_handler(
+            build_receivables_conversation_handler()
+        )
+
         self.application.add_handler(
             build_expense_conversation_handler()
         )

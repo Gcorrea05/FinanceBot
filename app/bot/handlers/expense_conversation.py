@@ -15,8 +15,7 @@ from app.bot.expense_input import (
     ExpenseInputError,
     format_brl,
     parse_date_input,
-    parse_equal_people,
-    parse_exact_people,
+    parse_shared_person_entry,
     parse_installment_count,
     parse_purchase_datetime,
     parse_shared_mode,
@@ -27,6 +26,8 @@ from app.bot.keyboards.expense import (
     BUTTON_CANCEL,
     BUTTON_CONFIRM,
     BUTTON_EXACT_SPLIT,
+    BUTTON_FINISH_PEOPLE,
+    BUTTON_REMOVE_LAST_PERSON,
     BUTTON_RESTART,
     BUTTON_SKIP,
     build_choice_keyboard,
@@ -34,12 +35,14 @@ from app.bot.keyboards.expense import (
     build_date_keyboard,
     build_notes_keyboard,
     build_shared_mode_keyboard,
+    build_shared_people_keyboard,
     build_yes_no_keyboard,
 )
 from app.bot.keyboards.main_menu import (
     MENU_ADD_EXPENSE,
     build_main_menu,
 )
+from app.constants import DEFAULT_SHARED_PEOPLE
 from app.container import container_context
 from app.domain.exceptions import DomainError
 from app.domain.money import MoneyParser
@@ -50,6 +53,7 @@ from app.schemas.expense.create import ExpenseCreate
 from app.services.lookup_service import (
     LookupNotFoundError,
 )
+from app.utils.text_normalizer import TextNormalizer
 
 
 (
@@ -138,6 +142,139 @@ def _move_to(
     ] = next_state
 
     return next_state
+
+
+def _shared_people(
+    context: ContextTypes.DEFAULT_TYPE,
+) -> list:
+    draft = _draft(context)
+
+    people = draft.setdefault(
+        "shared_people",
+        [],
+    )
+
+    if isinstance(people, tuple):
+        people = list(people)
+        draft["shared_people"] = people
+
+    return people
+
+
+def _shared_people_summary(
+    context: ContextTypes.DEFAULT_TYPE,
+) -> str:
+    draft = _draft(context)
+    people = _shared_people(context)
+
+    if not people:
+        return "Nenhuma pessoa adicionada."
+
+    lines = [
+        "Pessoas adicionadas:",
+    ]
+
+    for index, person in enumerate(
+        people,
+        start=1,
+    ):
+        if person.amount is None:
+            detail = person.name
+        else:
+            detail = (
+                f"{person.name} - "
+                + format_brl(
+                    Decimal(str(person.amount))
+                )
+            )
+
+        lines.append(
+            f"{index}. {detail}"
+        )
+
+    split = SharedExpenseSplitter().split(
+        total=draft["purchase_value"],
+        people=tuple(people),
+    )
+
+    if draft.get("shared_mode") == "equal":
+        lines.append("")
+        lines.append(
+            (
+                "Sua parte atual: "
+                + format_brl(
+                    split.owner_amount
+                )
+            )
+        )
+
+        if split.allocations:
+            lines.append(
+                (
+                    "Parte de cada pessoa: "
+                    + format_brl(
+                        split.allocations[0].amount
+                    )
+                )
+            )
+    else:
+        allocated_total = sum(
+            (
+                allocation.amount
+                for allocation
+                in split.allocations
+            ),
+            start=Decimal("0.00"),
+        )
+
+        lines.append("")
+        lines.append(
+            (
+                "Total a receber: "
+                + format_brl(
+                    allocated_total
+                )
+            )
+        )
+        lines.append(
+            (
+                "Sua parte restante: "
+                + format_brl(
+                    split.owner_amount
+                )
+            )
+        )
+
+    return "\n".join(lines)
+
+
+def _shared_people_prompt(
+    context: ContextTypes.DEFAULT_TYPE,
+) -> str:
+    draft = _draft(context)
+    shared_mode = draft.get("shared_mode")
+
+    if shared_mode == "equal":
+        instruction = (
+            "Envie uma pessoa por resposta. "
+            "Exemplo: Tomas"
+        )
+    else:
+        instruction = (
+            "Envie uma pessoa por resposta no formato "
+            "Nome=valor. Exemplo: Tomas=70,00"
+        )
+
+    defaults = ", ".join(
+        DEFAULT_SHARED_PEOPLE
+    )
+
+    return (
+        f"{instruction}\n\n"
+        f" {defaults}\n"
+        "Quando terminar, escolha Finalizar pessoas.\n\n"
+        + _shared_people_summary(context)
+    )
 
 
 async def start_expense(
@@ -603,25 +740,15 @@ async def receive_shared_mode(
         )
         return SHARED_MODE
 
-    _draft(context)[
-        "shared_mode"
-    ] = shared_mode
-
-    if shared_mode == "equal":
-        prompt = (
-            "Informe os nomes separados por virgula.\n"
-            "Exemplo: Ana, Bruno"
-        )
-    else:
-        prompt = (
-            "Informe nome e valor, separados por ponto e virgula.\n"
-            "Exemplo: Ana=30,00; Bruno=20,00"
-        )
+    draft = _draft(context)
+    draft["shared_mode"] = shared_mode
+    draft["shared_people"] = []
 
     await message.reply_text(
-        prompt,
-        reply_markup=build_choice_keyboard(
-            [],
+        _shared_people_prompt(context),
+        reply_markup=build_shared_people_keyboard(
+            DEFAULT_SHARED_PEOPLE,
+            shared_mode=shared_mode,
         ),
     )
 
@@ -641,20 +768,98 @@ async def receive_shared_people(
         return SHARED_PEOPLE
 
     draft = _draft(context)
+    action = (message.text or "").strip()
+    people = _shared_people(context)
 
-    try:
-        if draft["shared_mode"] == "equal":
-            people = parse_equal_people(
-                message.text or ""
+    if action == BUTTON_REMOVE_LAST_PERSON:
+        if people:
+            removed = people.pop()
+
+            await message.reply_text(
+                (
+                    f"{removed.name} removido.\n\n"
+                    + _shared_people_prompt(
+                        context
+                    )
+                ),
+                reply_markup=build_shared_people_keyboard(
+                    DEFAULT_SHARED_PEOPLE,
+                    shared_mode=draft["shared_mode"],
+                ),
             )
         else:
-            people = parse_exact_people(
-                message.text or ""
+            await message.reply_text(
+                "Nao ha pessoas para remover.",
+                reply_markup=build_shared_people_keyboard(
+                    DEFAULT_SHARED_PEOPLE,
+                    shared_mode=draft["shared_mode"],
+                ),
             )
+
+        return SHARED_PEOPLE
+
+    if action == BUTTON_FINISH_PEOPLE:
+        try:
+            SharedExpenseSplitter().split(
+                total=draft["purchase_value"],
+                people=tuple(people),
+            )
+
+        except DomainError as error:
+            await message.reply_text(
+                str(error),
+                reply_markup=build_shared_people_keyboard(
+                    DEFAULT_SHARED_PEOPLE,
+                    shared_mode=draft["shared_mode"],
+                ),
+            )
+            return SHARED_PEOPLE
+
+        await message.reply_text(
+            (
+                "Deseja adicionar uma observacao?\n"
+                "Envie o texto ou escolha Pular."
+            ),
+            reply_markup=build_notes_keyboard(),
+        )
+
+        return _move_to(
+            context,
+            NOTES,
+        )
+
+    try:
+        person = parse_shared_person_entry(
+            action,
+            shared_mode=draft["shared_mode"],
+        )
+
+        normalized_name = TextNormalizer.normalize(
+            person.name
+        )
+
+        existing_names = {
+            TextNormalizer.normalize(
+                existing.name
+            )
+            for existing in people
+        }
+
+        if normalized_name in existing_names:
+            raise ExpenseInputError(
+                (
+                    f"A pessoa '{person.name}' "
+                    "ja foi adicionada."
+                )
+            )
+
+        candidate_people = tuple(
+            [*people, person]
+        )
 
         SharedExpenseSplitter().split(
             total=draft["purchase_value"],
-            people=people,
+            people=candidate_people,
         )
 
     except (
@@ -662,26 +867,30 @@ async def receive_shared_people(
         DomainError,
     ) as error:
         await message.reply_text(
-            str(error)
+            str(error),
+            reply_markup=build_shared_people_keyboard(
+                DEFAULT_SHARED_PEOPLE,
+                shared_mode=draft["shared_mode"],
+            ),
         )
         return SHARED_PEOPLE
 
-    draft[
-        "shared_people"
-    ] = people
+    people.append(person)
 
     await message.reply_text(
         (
-            "Deseja adicionar uma observacao?\n"
-            "Envie o texto ou escolha Pular."
+            f"{person.name} adicionado.\n\n"
+            + _shared_people_prompt(
+                context
+            )
         ),
-        reply_markup=build_notes_keyboard(),
+        reply_markup=build_shared_people_keyboard(
+            DEFAULT_SHARED_PEOPLE,
+            shared_mode=draft["shared_mode"],
+        ),
     )
 
-    return _move_to(
-        context,
-        NOTES,
-    )
+    return SHARED_PEOPLE
 
 
 async def receive_notes(
@@ -997,16 +1206,11 @@ async def _prompt_state(
             context
         ).get("shared_mode")
 
-        example = (
-            "Ana, Bruno"
-            if shared_mode == "equal"
-            else "Ana=30,00; Bruno=20,00"
-        )
-
         await message.reply_text(
-            f"Informe as pessoas. Exemplo: {example}",
-            reply_markup=build_choice_keyboard(
-                [],
+            _shared_people_prompt(context),
+            reply_markup=build_shared_people_keyboard(
+                DEFAULT_SHARED_PEOPLE,
+                shared_mode=shared_mode,
             ),
         )
         return

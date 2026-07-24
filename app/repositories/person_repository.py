@@ -33,6 +33,29 @@ class PersonRepository(BaseRepository[Person]):
 
         return self.session.scalar(statement)
 
+    def list_active(
+        self,
+    ) -> list[Person]:
+        statement = (
+            select(Person)
+            .where(Person.active.is_(True))
+            .order_by(Person.name)
+        )
+
+        return list(
+            self.session.scalars(
+                statement
+            ).all()
+        )
+
+    def list_active_names(
+        self,
+    ) -> list[str]:
+        return [
+            person.name
+            for person in self.list_active()
+        ]
+
     def get_or_create(
         self,
         name: str,
@@ -55,6 +78,9 @@ class PersonRepository(BaseRepository[Person]):
         )
 
         if existing is not None:
+            if not existing.active:
+                existing.active = True
+
             return existing
 
         person = Person(
