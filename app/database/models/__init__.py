@@ -1,3 +1,7 @@
+from app.database.models.automation import (
+    AutomationDelivery,
+    AutomationSettings,
+)
 from app.database.models.budget import Budget
 from app.database.models.category import Category
 from app.database.models.expense import Expense
@@ -10,6 +14,8 @@ from app.database.models.person import Person
 
 
 __all__ = [
+    "AutomationDelivery",
+    "AutomationSettings",
     "Budget",
     "Category",
     "Expense",

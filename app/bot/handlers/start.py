@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.container import container_context
 from app.bot.handlers.expense_conversation import (
     start_expense,
 )
@@ -32,6 +33,7 @@ HELP_TEXT = (
     "/ultimos - ver os ultimos lancamentos\n"
     "/receber - consultar valores a receber\n"
     "/cancelar - cancelar o fluxo atual\n"
+    "/notificacoes - vincular este chat aos alertas\n"
     "/ajuda - exibir esta ajuda"
 )
 
@@ -47,6 +49,35 @@ async def start(
 
     await message.reply_text(
         text=WELCOME_TEXT,
+        reply_markup=build_main_menu(),
+    )
+
+
+async def link_notifications(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    del context
+
+    message = update.effective_message
+    chat = update.effective_chat
+
+    if (
+        message is None
+        or chat is None
+    ):
+        return
+
+    with container_context() as container:
+        container.automation_service.link_telegram_chat(
+            chat.id
+        )
+
+    await message.reply_text(
+        text=(
+            "Este chat foi vinculado "
+            "as notificacoes automaticas."
+        ),
         reply_markup=build_main_menu(),
     )
 

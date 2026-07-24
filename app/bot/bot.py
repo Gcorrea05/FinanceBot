@@ -20,6 +20,7 @@ from app.bot.handlers.recent_expenses import (
 )
 from app.bot.handlers.start import (
     help_command,
+    link_notifications,
     menu_handler,
     start,
     unknown_command,
@@ -93,6 +94,12 @@ class FinanceBot:
                     ),
                 ),
                 BotCommand(
+                    command="notificacoes",
+                    description=(
+                        "Vincular alertas a este chat"
+                    ),
+                ),
+                BotCommand(
                     command="ajuda",
                     description="Exibir ajuda",
                 ),
@@ -119,6 +126,13 @@ class FinanceBot:
             CommandHandler(
                 command="ultimos",
                 callback=show_recent_expenses,
+            )
+        )
+
+        self.application.add_handler(
+            CommandHandler(
+                command="notificacoes",
+                callback=link_notifications,
             )
         )
 

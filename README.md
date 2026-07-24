@@ -22,10 +22,7 @@ A interface web concentra visualizacao e manutencao:
 - despesas simples, parceladas e compartilhadas;
 - valores a receber;
 - planejamento mensal de renda, reserva e limite de gastos;
-- calculo de limite diario;
-- relatorios por periodo, categoria e estabelecimento;
-- comparacao mensal e acompanhamento de parcelamentos;
-- importacao de extratos CSV, XLSX e OFX com deduplicacao.
+- calculo de limite diario.
 
 ## Regra do planejamento
 
@@ -69,3 +66,21 @@ npm run dev
 python -m pytest -q
 npm --prefix .\frontend run test
 ```
+
+
+## Automacoes
+
+Vincule o chat no Telegram:
+
+```text
+/notificacoes
+```
+
+Execute o worker em outro terminal:
+
+```powershell
+python -m app.automation.worker
+```
+
+As configuracoes de resumos, vencimentos e alertas ficam na pagina
+**Automacoes** da interface web.
