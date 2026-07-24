@@ -10,6 +10,8 @@ import type {
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
   ReferenceListResponse,
+  ReportOverview,
+  ReportQuery,
 } from "./types";
 
 const DEFAULT_API_URL = "http://127.0.0.1:8000/api/v1";
@@ -74,11 +76,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function buildQuery(params: ExpenseQuery): string {
+function buildQuery(params: object): string {
   const search = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined) {
+    if (
+      value !== undefined
+      && value !== null
+      && value !== ""
+    ) {
       search.set(key, String(value));
     }
   });
@@ -179,6 +185,14 @@ export const financeApi = {
       `/budgets/${year}/${month}`,
       "PUT",
       payload,
+    );
+  },
+
+  getReport(
+    params: ReportQuery,
+  ): Promise<ReportOverview> {
+    return request<ReportOverview>(
+      `/reports/overview${buildQuery(params)}`,
     );
   },
 };

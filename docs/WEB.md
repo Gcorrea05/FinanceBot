@@ -12,6 +12,9 @@ A interface web complementa o Telegram. O bot continua focado em registro rapido
 - valores a receber com baixa de pendencias;
 - planejamento mensal de renda, reserva e limite de gastos;
 - calculo de saldo restante e limite diario;
+- relatorios com comparacao mensal;
+- gastos por categoria e ranking de estabelecimentos;
+- acompanhamento de parcelamentos ativos;
 - tratamento de API indisponivel;
 - testes automatizados do cliente HTTP e dos formularios.
 
@@ -57,4 +60,16 @@ VITE_API_URL=http://127.0.0.1:8000/api/v1
 
 ## Limites atuais
 
-Relatorios analiticos, importacoes, autenticacao e automatizacoes ainda nao fazem parte da interface.
+Importacoes, autenticacao e automatizacoes ainda nao fazem parte da interface.
+
+
+## Regra dos relatorios
+
+Os relatorios seguem a mesma regra do planejamento mensal:
+
+- despesas simples entram no mes da compra;
+- despesas parceladas entram pelo vencimento da parcela;
+- em compras compartilhadas, apenas a parte do proprietario e contabilizada;
+- o periodo maximo por consulta e de 24 meses.
+
+Os filtros disponiveis sao categoria, forma de pagamento e parte do nome do estabelecimento.

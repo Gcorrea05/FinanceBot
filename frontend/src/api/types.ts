@@ -141,3 +141,66 @@ export interface BudgetPlanPayload {
   reserve_target: string;
   spending_limit: string;
 }
+
+export interface ReportQuery {
+  start_year: number;
+  start_month: number;
+  end_year: number;
+  end_month: number;
+  category?: string;
+  payment_method?: string;
+  place?: string;
+}
+
+export interface ReportPeriod {
+  start_year: number;
+  start_month: number;
+  end_year: number;
+  end_month: number;
+}
+
+export interface ReportMonthlyPoint {
+  year: number;
+  month: number;
+  label: string;
+  total: string;
+}
+
+export interface ReportCategoryItem {
+  name: string;
+  total: string;
+  percentage: string;
+}
+
+export interface ReportMerchantItem {
+  name: string;
+  total: string;
+  transactions: number;
+}
+
+export interface ReportInstallmentItem {
+  expense_id: number;
+  purchase_place: string;
+  category: string;
+  payment_method: string;
+  purchase_value: string;
+  owner_total: string;
+  total_installments: number;
+  paid_installments: number;
+  pending_installments: number;
+  next_due_date: string | null;
+  remaining_amount: string;
+}
+
+export interface ReportOverview {
+  period: ReportPeriod;
+  total_spent: string;
+  monthly_average: string;
+  transactions: number;
+  highest_month: ReportMonthlyPoint | null;
+  installment_commitment: string;
+  monthly: ReportMonthlyPoint[];
+  categories: ReportCategoryItem[];
+  merchants: ReportMerchantItem[];
+  installments: ReportInstallmentItem[];
+}

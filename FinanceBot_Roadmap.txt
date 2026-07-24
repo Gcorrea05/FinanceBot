@@ -41,15 +41,15 @@ BATCH 11 - Planejamento mensal
 - despesas parceladas pelo vencimento;
 - apenas a parte do proprietario em compras compartilhadas.
 
-
-PROXIMOS BATCHES
-
 BATCH 12 - Relatorios e graficos
 - filtros avancados;
 - comparacao mensal;
 - gastos por categoria;
 - ranking de estabelecimentos;
 - visao de parcelamentos.
+
+
+PROXIMOS BATCHES
 
 BATCH 13 - Importacoes
 - CSV;

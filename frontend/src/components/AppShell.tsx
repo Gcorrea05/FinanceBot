@@ -4,7 +4,8 @@ export type PageId =
   | "dashboard"
   | "expenses"
   | "receivables"
-  | "budget";
+  | "budget"
+  | "reports";
 
 interface AppShellProps {
   activePage: PageId;
@@ -36,6 +37,11 @@ const navigation: Array<{
     id: "budget",
     label: "Planejamento",
     description: "Limites do mes",
+  },
+  {
+    id: "reports",
+    label: "Relatorios",
+    description: "Analises e comparacoes",
   },
 ];
 

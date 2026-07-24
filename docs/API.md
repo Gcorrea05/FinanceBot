@@ -42,6 +42,9 @@ Open:
 - `GET /api/v1/receivables`
 - `GET /api/v1/receivables/people/{person_id}`
 - `POST /api/v1/receivables/{receivable_id}/settle`
+- `GET /api/v1/budgets/{year}/{month}`
+- `PUT /api/v1/budgets/{year}/{month}`
+- `GET /api/v1/reports/overview`
 
 ## Scope and security
 
@@ -68,3 +71,16 @@ alembic upgrade head
 ```
 
 Review every generated migration before committing it.
+
+
+## Reports
+
+`GET /api/v1/reports/overview` accepts:
+
+- `start_year` and `start_month`;
+- `end_year` and `end_month`;
+- optional `category`;
+- optional `payment_method`;
+- optional `place`.
+
+The response contains monthly comparison, category distribution, merchant ranking and active installment commitments. A single request may cover at most 24 months.

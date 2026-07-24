@@ -22,7 +22,9 @@ A interface web concentra visualizacao e manutencao:
 - despesas simples, parceladas e compartilhadas;
 - valores a receber;
 - planejamento mensal de renda, reserva e limite de gastos;
-- calculo de limite diario.
+- calculo de limite diario;
+- relatorios por periodo, categoria e estabelecimento;
+- comparacao mensal e acompanhamento de parcelamentos.
 
 ## Regra do planejamento
 
