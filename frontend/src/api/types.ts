@@ -267,3 +267,59 @@ export interface ImportBatch {
 export interface ImportHistoryResponse {
   items: ImportBatch[];
 }
+
+
+
+export interface AutomationSettingsPayload {
+  enabled: boolean;
+  timezone: string;
+  daily_summary_enabled: boolean;
+  daily_summary_hour: number;
+  weekly_summary_enabled: boolean;
+  weekly_summary_weekday: number;
+  weekly_summary_hour: number;
+  installment_reminders_enabled: boolean;
+  installment_reminder_days: number;
+  reminder_hour: number;
+  budget_alerts_enabled: boolean;
+  budget_alert_threshold: number;
+}
+
+export interface AutomationSettings
+  extends AutomationSettingsPayload {
+  telegram_connected: boolean;
+}
+
+export interface AutomationMessage {
+  kind: string;
+  title: string;
+  message: string;
+  scheduled_for: string | null;
+}
+
+export interface AutomationPreviewResponse {
+  items: AutomationMessage[];
+}
+
+export interface AutomationRunResponse {
+  generated: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+  items: AutomationMessage[];
+}
+
+export interface AutomationDelivery {
+  id: number;
+  kind: string;
+  status: string;
+  message: string;
+  scheduled_for: string | null;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface AutomationHistoryResponse {
+  items: AutomationDelivery[];
+}

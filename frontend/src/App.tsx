@@ -4,6 +4,7 @@ import {
   AppShell,
   type PageId,
 } from "./components/AppShell";
+import { AutomationsPage } from "./pages/AutomationsPage";
 import { BudgetPage } from "./pages/BudgetPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
@@ -46,6 +47,10 @@ export function App() {
 
       {activePage === "imports"
         ? <ImportsPage />
+        : null}
+
+      {activePage === "automations"
+        ? <AutomationsPage />
         : null}
     </AppShell>
   );

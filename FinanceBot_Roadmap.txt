@@ -59,9 +59,10 @@ BATCH 13 - Importacoes
 PROXIMOS BATCHES
 
 BATCH 14 - Automatizacoes
-- resumos;
-- vencimentos;
-- alertas.
+- resumos diarios e semanais;
+- vencimentos de parcelas;
+- alertas de planejamento;
+- worker e historico de envios.
 
 BATCH 15 - Inteligencia
 - linguagem natural;

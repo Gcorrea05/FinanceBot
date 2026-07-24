@@ -8,6 +8,7 @@ from app.domain.budget_plan import BudgetPlanValidator
 from app.domain.expense_validator import ExpenseValidator
 from app.domain.installment_plan import InstallmentPlanBuilder
 from app.domain.shared_expense import SharedExpenseSplitter
+from app.repositories.automation_repository import AutomationRepository
 from app.repositories.budget_expense_repository import BudgetExpenseRepository
 from app.repositories.budget_repository import BudgetRepository
 from app.repositories.category_repository import CategoryRepository
@@ -17,6 +18,7 @@ from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.repositories.person_repository import PersonRepository
 from app.repositories.receivable_repository import ReceivableRepository
 from app.repositories.report_repository import ReportRepository
+from app.services.automation_service import AutomationService
 from app.services.budget_service import BudgetService
 from app.services.expense_editor_service import ExpenseEditorService
 from app.services.expense_management_service import ExpenseManagementService
@@ -40,6 +42,7 @@ class Container:
         self.budget_expense_repository = BudgetExpenseRepository(session)
         self.report_repository = ReportRepository(session)
         self.import_repository = ImportRepository(session)
+        self.automation_repository = AutomationRepository(session)
 
         self.lookup_service = LookupService(
             category_repository=self.category_repository,
@@ -77,6 +80,10 @@ class Container:
             validator=BudgetPlanValidator(),
         )
         self.report_service = ReportService(repository=self.report_repository)
+        self.automation_service = AutomationService(
+            repository=self.automation_repository,
+            budget_service=self.budget_service,
+        )
         self.import_service = ImportService(
             repository=self.import_repository,
             expense_service=self.expense_service,

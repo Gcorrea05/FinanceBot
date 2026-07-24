@@ -1,4 +1,9 @@
 import type {
+  AutomationHistoryResponse,
+  AutomationPreviewResponse,
+  AutomationRunResponse,
+  AutomationSettings,
+  AutomationSettingsPayload,
   BudgetOverview,
   BudgetPlanPayload,
   Expense,
@@ -244,5 +249,43 @@ export const financeApi = {
 
   getImport(batchId: number): Promise<ImportBatch> {
     return request<ImportBatch>(`/imports/${batchId}`);
+  },
+
+  getAutomationSettings(): Promise<AutomationSettings> {
+    return request<AutomationSettings>("/automations/settings");
+  },
+
+  saveAutomationSettings(
+    payload: AutomationSettingsPayload,
+  ): Promise<AutomationSettings> {
+    return jsonRequest<AutomationSettingsPayload, AutomationSettings>(
+      "/automations/settings",
+      "PUT",
+      payload,
+    );
+  },
+
+  disconnectTelegram(): Promise<AutomationSettings> {
+    return request<AutomationSettings>(
+      "/automations/disconnect",
+      { method: "POST" },
+    );
+  },
+
+  previewAutomations(): Promise<AutomationPreviewResponse> {
+    return request<AutomationPreviewResponse>("/automations/preview");
+  },
+
+  runAutomationsNow(): Promise<AutomationRunResponse> {
+    return request<AutomationRunResponse>(
+      "/automations/run",
+      { method: "POST" },
+    );
+  },
+
+  listAutomationDeliveries(): Promise<AutomationHistoryResponse> {
+    return request<AutomationHistoryResponse>(
+      "/automations/deliveries",
+    );
   },
 };
