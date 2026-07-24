@@ -1,0 +1,15 @@
+FinanceBot migration environment.
+
+The first revision is an empty baseline because the current schema
+already existed before Alembic was introduced.
+
+Use:
+
+    python -m scripts.bootstrap_migrations
+
+After changing SQLAlchemy models:
+
+    alembic revision --autogenerate -m "describe change"
+    alembic upgrade head
+
+Always review generated migrations before committing them.

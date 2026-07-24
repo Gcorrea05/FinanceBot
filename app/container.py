@@ -28,6 +28,9 @@ from app.repositories.person_repository import (
 from app.repositories.receivable_repository import (
     ReceivableRepository,
 )
+from app.services.expense_management_service import (
+    ExpenseManagementService,
+)
 from app.services.expense_query_service import (
     ExpenseQueryService,
 )
@@ -101,6 +104,14 @@ class Container:
 
         self.expense_query_service = (
             ExpenseQueryService(
+                expense_repository=(
+                    self.expense_repository
+                )
+            )
+        )
+
+        self.expense_management_service = (
+            ExpenseManagementService(
                 expense_repository=(
                     self.expense_repository
                 )
