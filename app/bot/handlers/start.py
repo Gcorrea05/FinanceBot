@@ -1,26 +1,27 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.bot.handlers.expense_conversation import (
+    start_expense,
+)
 from app.bot.handlers.receivables import (
     start_receivables,
 )
-from app.bot.handlers.reference_data import (
-    list_categories,
-    list_payment_methods,
+from app.bot.handlers.recent_expenses import (
+    show_recent_expenses,
 )
 from app.bot.keyboards.main_menu import (
     MENU_ADD_EXPENSE,
-    MENU_CATEGORIES,
     MENU_HELP,
-    MENU_PAYMENT_METHODS,
     MENU_RECEIVABLES,
+    MENU_RECENT_EXPENSES,
     build_main_menu,
 )
 
 
 WELCOME_TEXT = (
     "\U0001f4b0 FinanceBot\n\n"
-    "Use o menu para cadastrar e consultar despesas."
+    "Registre despesas e faca consultas rapidas."
 )
 
 
@@ -28,10 +29,9 @@ HELP_TEXT = (
     "\u2753 Comandos disponiveis\n\n"
     "/start - abrir o menu principal\n"
     "/gasto - cadastrar uma despesa\n"
-    "/cancelar - cancelar o cadastro atual\n"
-    "/categorias - listar categorias\n"
-    "/pagamentos - listar formas de pagamento\n"
+    "/ultimos - ver os ultimos lancamentos\n"
     "/receber - consultar valores a receber\n"
+    "/cancelar - cancelar o fluxo atual\n"
     "/ajuda - exibir esta ajuda"
 )
 
@@ -40,8 +40,6 @@ async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    del context
-
     message = update.effective_message
 
     if message is None:
@@ -66,26 +64,6 @@ async def help_command(
 
     await message.reply_text(
         text=HELP_TEXT,
-        reply_markup=build_main_menu(),
-    )
-
-
-async def add_expense_placeholder(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    del context
-
-    message = update.effective_message
-
-    if message is None:
-        return
-
-    await message.reply_text(
-        text=(
-            "Use /gasto ou o botao Adicionar gasto "
-            "para iniciar o cadastro."
-        ),
         reply_markup=build_main_menu(),
     )
 
@@ -121,15 +99,15 @@ async def menu_handler(
 
     text = (message.text or "").strip()
 
-    if text == MENU_CATEGORIES:
-        await list_categories(
+    if text == MENU_ADD_EXPENSE:
+        await start_expense(
             update,
             context,
         )
         return
 
-    if text == MENU_PAYMENT_METHODS:
-        await list_payment_methods(
+    if text == MENU_RECENT_EXPENSES:
+        await show_recent_expenses(
             update,
             context,
         )
@@ -144,13 +122,6 @@ async def menu_handler(
 
     if text == MENU_HELP:
         await help_command(
-            update,
-            context,
-        )
-        return
-
-    if text == MENU_ADD_EXPENSE:
-        await add_expense_placeholder(
             update,
             context,
         )
