@@ -1,43 +1,121 @@
-FinanceBot - Roadmap Completo
+FinanceBot - Roadmap Revisado
 
-FASE 1 — Fundação - Estrutura do projeto - Configuração (.env) -
-SQLite + SQLAlchemy - Models e relacionamentos - Repository Pattern -
-Services - Seeds automáticas
+DIRETRIZ DE INTERFACES
 
-FASE 2 — Camada de Domínio - Validação de gastos - Parcelamentos -
-Gastos divididos - Regras de negócio centralizadas
+Telegram:
+- registro rapido de despesas;
+- consulta dos cinco lancamentos mais recentes;
+- consulta e baixa de valores a receber;
+- sem relatorios ou filtros avancados.
 
-FASE 3 — Bot do Telegram - /start - Menus com botões -
-ConversationHandler - Cadastro guiado de gastos - Cancelar, voltar e
-confirmar
+Interface web:
+- visualizacao completa;
+- filtros e relatorios;
+- graficos;
+- orcamentos;
+- importacoes e exportacoes;
+- administracao e edicao de dados.
 
-FASE 4 — Consultas - Saldo - Últimos gastos - Buscar por categoria -
-Buscar por estabelecimento - Parcelas - Pendências
 
-FASE 5 — Orçamento - Meta mensal - Salário - Reserva financeira - Limite
-diário - Alertas de orçamento
+CONCLUIDO
 
-FASE 6 — Relatórios - Gastos por categoria - Evolução mensal - Ranking
-de estabelecimentos - Parcelamentos - Exportação PDF/Excel/CSV
+BATCH 0 - Saneamento do repositorio
+- .gitignore;
+- dependencias;
+- testes iniciais;
+- remocao de arquivos gerados.
 
-FASE 7 — Importação - CSV - XLSX - OFX - Histórico de importações -
-Deduplicação
+BATCH 1 - Lookup e normalizacao
+- LookupService;
+- categorias e formas de pagamento normalizadas;
+- aliases e sugestoes.
 
-FASE 8 — Inteligência - Interpretação de linguagem natural - Sugestão
-automática de categorias - Aprendizado de padrões
+BATCH 2 - Integracao basica do Telegram
+- comandos;
+- menu;
+- handlers;
+- integracao com services.
 
-FASE 9 — Dashboard Web - FastAPI - React - Gráficos - Filtros
+BATCH 3 - Regras de dominio
+- validacao de despesas;
+- valores monetarios;
+- transacoes e rollback.
 
-FASE 10 — API REST - CRUD de despesas - Consumo pelo Telegram
+BATCH 4 - Parcelamentos e compartilhamento
+- parcelas;
+- pessoas;
+- valores compartilhados;
+- persistencia do grafo da despesa.
 
-FASE 11 — Automatizações - Resumo diário - Resumo semanal - Resumo
-mensal - Alertas de vencimento
+BATCH 5 - Cadastro guiado
+- ConversationHandler;
+- voltar, cancelar e confirmar;
+- fluxo completo de cadastro.
 
-FASE 12 — Produção - Docker - Backup - PostgreSQL - Logs - Deploy
+BATCH 5.5 - Participantes em looping
+- uma pessoa por resposta;
+- divisao igual ou valor exato;
+- remocao da ultima pessoa.
 
-FASE 13 — IA - Perguntas em linguagem natural - Projeções -
-Recomendações - Análise de padrões
+BATCH 6 - Valores a receber
+- resumo consolidado;
+- detalhamento por pessoa;
+- baixa de pendencias.
 
-Próxima etapa de desenvolvimento: 1. Implementar LookupService. 2.
-Normalização de categorias e formas de pagamento. 3. Integrar o bot do
-Telegram. 4. Fluxo completo de cadastro de despesas.
+BATCH 7 - Consolidacao do Telegram
+- menu operacional reduzido;
+- ultimos cinco lancamentos;
+- remocao de consultas analiticas do bot;
+- correcao da consulta mensal do repository;
+- documentacao da divisao de responsabilidades.
+
+
+PROXIMOS BATCHES
+
+BATCH 8 - API REST e migrations
+- FastAPI;
+- Alembic;
+- contratos para despesas, pessoas e recebimentos;
+- testes de endpoints.
+
+BATCH 9 - Interface web inicial
+- estrutura React;
+- autenticacao local inicial;
+- consumo da API;
+- listagem e edicao de despesas.
+
+BATCH 10 - Consultas e relatorios web
+- filtros;
+- resumos;
+- graficos;
+- parcelamentos;
+- historico compartilhado.
+
+BATCH 11 - Orcamento
+- salario;
+- metas;
+- reserva;
+- limites e alertas.
+
+BATCH 12 - Importacoes
+- CSV;
+- XLSX;
+- OFX;
+- deduplicacao e historico.
+
+BATCH 13 - Automatizacoes
+- resumos;
+- vencimentos;
+- alertas.
+
+BATCH 14 - Inteligencia
+- linguagem natural;
+- categorizacao;
+- padroes e recomendacoes.
+
+BATCH 15 - Producao
+- Docker;
+- PostgreSQL;
+- backup;
+- logs;
+- deploy e monitoramento.

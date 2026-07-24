@@ -15,9 +15,8 @@ from app.bot.handlers.expense_conversation import (
 from app.bot.handlers.receivables import (
     build_receivables_conversation_handler,
 )
-from app.bot.handlers.reference_data import (
-    list_categories,
-    list_payment_methods,
+from app.bot.handlers.recent_expenses import (
+    show_recent_expenses,
 )
 from app.bot.handlers.start import (
     help_command,
@@ -65,29 +64,33 @@ class FinanceBot:
             commands=[
                 BotCommand(
                     command="start",
-                    description="Abrir o menu principal",
+                    description=(
+                        "Abrir o menu principal"
+                    ),
                 ),
                 BotCommand(
                     command="gasto",
-                    description="Cadastrar uma despesa",
-                ),
-                BotCommand(
-                    command="cancelar",
-                    description="Cancelar o cadastro atual",
-                ),
-                BotCommand(
-                    command="categorias",
-                    description="Listar categorias",
-                ),
-                BotCommand(
-                    command="pagamentos",
                     description=(
-                        "Listar formas de pagamento"
+                        "Cadastrar uma despesa"
+                    ),
+                ),
+                BotCommand(
+                    command="ultimos",
+                    description=(
+                        "Ver os ultimos lancamentos"
                     ),
                 ),
                 BotCommand(
                     command="receber",
-                    description="Consultar valores a receber",
+                    description=(
+                        "Consultar valores a receber"
+                    ),
+                ),
+                BotCommand(
+                    command="cancelar",
+                    description=(
+                        "Cancelar o fluxo atual"
+                    ),
                 ),
                 BotCommand(
                     command="ajuda",
@@ -114,15 +117,8 @@ class FinanceBot:
 
         self.application.add_handler(
             CommandHandler(
-                command="categorias",
-                callback=list_categories,
-            )
-        )
-
-        self.application.add_handler(
-            CommandHandler(
-                command="pagamentos",
-                callback=list_payment_methods,
+                command="ultimos",
+                callback=show_recent_expenses,
             )
         )
 

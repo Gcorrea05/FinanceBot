@@ -28,6 +28,9 @@ from app.repositories.person_repository import (
 from app.repositories.receivable_repository import (
     ReceivableRepository,
 )
+from app.services.expense_query_service import (
+    ExpenseQueryService,
+)
 from app.services.expense_service import ExpenseService
 from app.services.lookup_service import LookupService
 from app.services.receivable_service import (
@@ -94,6 +97,14 @@ class Container:
             shared_splitter=(
                 self.shared_splitter
             ),
+        )
+
+        self.expense_query_service = (
+            ExpenseQueryService(
+                expense_repository=(
+                    self.expense_repository
+                )
+            )
         )
 
         self.receivable_service = ReceivableService(
