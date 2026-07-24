@@ -201,6 +201,84 @@ def parse_exact_people(
     return tuple(people)
 
 
+def parse_shared_person_entry(
+    value: str,
+    *,
+    shared_mode: str,
+) -> SharedPersonCreate:
+    raw_value = " ".join(
+        value.strip().split()
+    )
+
+    if not raw_value:
+        raise ExpenseInputError(
+            "Informe uma pessoa."
+        )
+
+    if shared_mode == "equal":
+        if any(
+            separator in raw_value
+            for separator in (",", ";", "=")
+        ):
+            raise ExpenseInputError(
+                (
+                    "Envie apenas uma pessoa por resposta. "
+                    "Exemplo: Tomas"
+                )
+            )
+
+        return SharedPersonCreate(
+            name=raw_value,
+        )
+
+    if shared_mode != "exact":
+        raise ExpenseInputError(
+            "Modo de divisao invalido."
+        )
+
+    if ";" in raw_value or raw_value.count("=") != 1:
+        raise ExpenseInputError(
+            (
+                "Envie apenas uma pessoa por resposta "
+                "no formato Nome=valor. "
+                "Exemplo: Tomas=70,00"
+            )
+        )
+
+    name, raw_amount = raw_value.split(
+        "=",
+        maxsplit=1,
+    )
+
+    name = " ".join(
+        name.strip().split()
+    )
+    raw_amount = raw_amount.strip()
+
+    if not name:
+        raise ExpenseInputError(
+            "O nome da pessoa nao pode ficar vazio."
+        )
+
+    try:
+        amount = MoneyParser.parse(
+            raw_amount
+        )
+
+    except ValueError as error:
+        raise ExpenseInputError(
+            (
+                f"Valor invalido para "
+                f"'{name}': {error}"
+            )
+        ) from error
+
+    return SharedPersonCreate(
+        name=name,
+        amount=amount,
+    )
+
+
 def format_brl(value: Decimal) -> str:
     normalized = value.quantize(
         Decimal("0.01")

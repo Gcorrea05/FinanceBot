@@ -1,6 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.bot.handlers.receivables import (
+    start_receivables,
+)
 from app.bot.handlers.reference_data import (
     list_categories,
     list_payment_methods,
@@ -10,6 +13,7 @@ from app.bot.keyboards.main_menu import (
     MENU_CATEGORIES,
     MENU_HELP,
     MENU_PAYMENT_METHODS,
+    MENU_RECEIVABLES,
     build_main_menu,
 )
 
@@ -27,6 +31,7 @@ HELP_TEXT = (
     "/cancelar - cancelar o cadastro atual\n"
     "/categorias - listar categorias\n"
     "/pagamentos - listar formas de pagamento\n"
+    "/receber - consultar valores a receber\n"
     "/ajuda - exibir esta ajuda"
 )
 
@@ -125,6 +130,13 @@ async def menu_handler(
 
     if text == MENU_PAYMENT_METHODS:
         await list_payment_methods(
+            update,
+            context,
+        )
+        return
+
+    if text == MENU_RECEIVABLES:
+        await start_receivables(
             update,
             context,
         )

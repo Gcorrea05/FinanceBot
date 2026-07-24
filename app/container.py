@@ -25,8 +25,14 @@ from app.repositories.payment_method_repository import (
 from app.repositories.person_repository import (
     PersonRepository,
 )
+from app.repositories.receivable_repository import (
+    ReceivableRepository,
+)
 from app.services.expense_service import ExpenseService
 from app.services.lookup_service import LookupService
+from app.services.receivable_service import (
+    ReceivableService,
+)
 
 
 class Container:
@@ -50,6 +56,10 @@ class Container:
 
         self.person_repository = PersonRepository(
             session
+        )
+
+        self.receivable_repository = (
+            ReceivableRepository(session)
         )
 
         self.lookup_service = LookupService(
@@ -83,6 +93,15 @@ class Container:
             ),
             shared_splitter=(
                 self.shared_splitter
+            ),
+        )
+
+        self.receivable_service = ReceivableService(
+            receivable_repository=(
+                self.receivable_repository
+            ),
+            person_repository=(
+                self.person_repository
             ),
         )
 

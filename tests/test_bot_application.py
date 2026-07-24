@@ -21,10 +21,16 @@ def test_finance_bot_registers_handlers():
 
     handlers = bot.application.handlers[0]
 
-    assert isinstance(
-        handlers[0],
-        ConversationHandler,
-    )
+    conversation_handlers = [
+        handler
+        for handler in handlers
+        if isinstance(
+            handler,
+            ConversationHandler,
+        )
+    ]
+
+    assert len(conversation_handlers) >= 2
 
     assert any(
         isinstance(

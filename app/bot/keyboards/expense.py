@@ -14,6 +14,8 @@ BUTTON_CONFIRM = "Confirmar"
 BUTTON_RESTART = "Recomecar"
 BUTTON_EQUAL_SPLIT = "Divisao igual"
 BUTTON_EXACT_SPLIT = "Valores exatos"
+BUTTON_FINISH_PEOPLE = "Finalizar pessoas"
+BUTTON_REMOVE_LAST_PERSON = "Remover ultima pessoa"
 
 
 def build_choice_keyboard(
@@ -83,6 +85,48 @@ def build_shared_mode_keyboard() -> ReplyKeyboardMarkup:
             BUTTON_EXACT_SPLIT,
         ],
         columns=1,
+    )
+
+
+def build_shared_people_keyboard(
+    default_people: Sequence[str],
+    *,
+    shared_mode: str,
+) -> ReplyKeyboardMarkup:
+    options: list[str] = []
+
+    if shared_mode == "equal":
+        options.extend(default_people)
+
+    rows = [
+        list(
+            options[index:index + 2]
+        )
+        for index in range(
+            0,
+            len(options),
+            2,
+        )
+    ]
+
+    rows.append(
+        [
+            BUTTON_FINISH_PEOPLE,
+            BUTTON_REMOVE_LAST_PERSON,
+        ]
+    )
+
+    rows.append(
+        [
+            BUTTON_BACK,
+            BUTTON_CANCEL,
+        ]
+    )
+
+    return ReplyKeyboardMarkup(
+        rows,
+        resize_keyboard=True,
+        one_time_keyboard=False,
     )
 
 
