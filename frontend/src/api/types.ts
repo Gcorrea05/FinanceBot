@@ -113,3 +113,94 @@ export interface ExpenseQuery {
   month?: number;
   year?: number;
 }
+
+export type BudgetStatus =
+  | "not_configured"
+  | "healthy"
+  | "attention"
+  | "exceeded";
+
+export interface BudgetOverview {
+  year: number;
+  month: number;
+  configured: boolean;
+  monthly_income: string | null;
+  reserve_target: string | null;
+  spending_limit: string | null;
+  spent: string;
+  remaining: string | null;
+  available_after_reserve: string | null;
+  daily_limit: string | null;
+  usage_percent: string | null;
+  remaining_days: number;
+  status: BudgetStatus;
+}
+
+export interface BudgetPlanPayload {
+  monthly_income: string;
+  reserve_target: string;
+  spending_limit: string;
+}
+
+export interface ReportQuery {
+  start_year: number;
+  start_month: number;
+  end_year: number;
+  end_month: number;
+  category?: string;
+  payment_method?: string;
+  place?: string;
+}
+
+export interface ReportPeriod {
+  start_year: number;
+  start_month: number;
+  end_year: number;
+  end_month: number;
+}
+
+export interface ReportMonthlyPoint {
+  year: number;
+  month: number;
+  label: string;
+  total: string;
+}
+
+export interface ReportCategoryItem {
+  name: string;
+  total: string;
+  percentage: string;
+}
+
+export interface ReportMerchantItem {
+  name: string;
+  total: string;
+  transactions: number;
+}
+
+export interface ReportInstallmentItem {
+  expense_id: number;
+  purchase_place: string;
+  category: string;
+  payment_method: string;
+  purchase_value: string;
+  owner_total: string;
+  total_installments: number;
+  paid_installments: number;
+  pending_installments: number;
+  next_due_date: string | null;
+  remaining_amount: string;
+}
+
+export interface ReportOverview {
+  period: ReportPeriod;
+  total_spent: string;
+  monthly_average: string;
+  transactions: number;
+  highest_month: ReportMonthlyPoint | null;
+  installment_commitment: string;
+  monthly: ReportMonthlyPoint[];
+  categories: ReportCategoryItem[];
+  merchants: ReportMerchantItem[];
+  installments: ReportInstallmentItem[];
+}

@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
-export type PageId = "dashboard" | "expenses" | "receivables";
+export type PageId =
+  | "dashboard"
+  | "expenses"
+  | "receivables"
+  | "budget"
+  | "reports";
 
 interface AppShellProps {
   activePage: PageId;
@@ -8,7 +13,11 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const navigation: Array<{ id: PageId; label: string; description: string }> = [
+const navigation: Array<{
+  id: PageId;
+  label: string;
+  description: string;
+}> = [
   {
     id: "dashboard",
     label: "Visao geral",
@@ -17,16 +26,30 @@ const navigation: Array<{ id: PageId; label: string; description: string }> = [
   {
     id: "expenses",
     label: "Despesas",
-    description: "Historico e filtros",
+    description: "Historico e manutencao",
   },
   {
     id: "receivables",
     label: "Valores a receber",
     description: "Pendencias compartilhadas",
   },
+  {
+    id: "budget",
+    label: "Planejamento",
+    description: "Limites do mes",
+  },
+  {
+    id: "reports",
+    label: "Relatorios",
+    description: "Analises e comparacoes",
+  },
 ];
 
-export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
+export function AppShell({
+  activePage,
+  onNavigate,
+  children,
+}: AppShellProps) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -38,10 +61,17 @@ export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
           </div>
         </div>
 
-        <nav className="navigation" aria-label="Navegacao principal">
+        <nav
+          className="navigation"
+          aria-label="Navegacao principal"
+        >
           {navigation.map((item) => (
             <button
-              className={item.id === activePage ? "nav-item active" : "nav-item"}
+              className={
+                item.id === activePage
+                  ? "nav-item active"
+                  : "nav-item"
+              }
               key={item.id}
               onClick={() => onNavigate(item.id)}
               type="button"
@@ -54,11 +84,15 @@ export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
 
         <div className="sidebar-note">
           <strong>Telegram operacional</strong>
-          <span>Continue usando o bot para registrar despesas rapidamente.</span>
+          <span>
+            Continue usando o bot para registrar despesas rapidamente.
+          </span>
         </div>
       </aside>
 
-      <main className="main-content">{children}</main>
+      <main className="main-content">
+        {children}
+      </main>
     </div>
   );
 }

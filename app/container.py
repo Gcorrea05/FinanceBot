@@ -4,20 +4,26 @@ from contextlib import contextmanager
 from sqlalchemy.orm import Session
 
 from app.database.session import get_session
+from app.domain.budget_plan import BudgetPlanValidator
 from app.domain.expense_validator import ExpenseValidator
 from app.domain.installment_plan import InstallmentPlanBuilder
 from app.domain.shared_expense import SharedExpenseSplitter
+from app.repositories.budget_expense_repository import BudgetExpenseRepository
+from app.repositories.budget_repository import BudgetRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.expense_repository import ExpenseRepository
 from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.repositories.person_repository import PersonRepository
 from app.repositories.receivable_repository import ReceivableRepository
+from app.repositories.report_repository import ReportRepository
+from app.services.budget_service import BudgetService
 from app.services.expense_editor_service import ExpenseEditorService
 from app.services.expense_management_service import ExpenseManagementService
 from app.services.expense_query_service import ExpenseQueryService
 from app.services.expense_service import ExpenseService
 from app.services.lookup_service import LookupService
 from app.services.receivable_service import ReceivableService
+from app.services.report_service import ReportService
 
 
 class Container:
@@ -29,6 +35,13 @@ class Container:
         self.payment_repository = PaymentMethodRepository(session)
         self.person_repository = PersonRepository(session)
         self.receivable_repository = ReceivableRepository(session)
+        self.budget_repository = BudgetRepository(session)
+        self.budget_expense_repository = BudgetExpenseRepository(
+            session
+        )
+        self.report_repository = ReportRepository(
+            session
+        )
 
         self.lookup_service = LookupService(
             category_repository=self.category_repository,
@@ -68,6 +81,16 @@ class Container:
         self.receivable_service = ReceivableService(
             receivable_repository=self.receivable_repository,
             person_repository=self.person_repository,
+        )
+
+        self.budget_service = BudgetService(
+            budget_repository=self.budget_repository,
+            expense_repository=self.budget_expense_repository,
+            validator=BudgetPlanValidator(),
+        )
+
+        self.report_service = ReportService(
+            repository=self.report_repository
         )
 
 

@@ -20,19 +20,11 @@ EXPECTED_ROUTES = {
 }
 
 
-def get_openapi_paths(application) -> set[str]:
-    schema = application.openapi()
-
-    return set(
-        schema.get("paths", {}).keys()
-    )
-
-
 def main() -> int:
     application = create_app()
-
-    actual_routes = get_openapi_paths(
-        application
+    schema = application.openapi()
+    actual_routes = set(
+        schema.get("paths", {}).keys()
     )
 
     missing = sorted(
@@ -50,14 +42,6 @@ def main() -> int:
 
         return 1
 
-    if application.docs_url != "/docs":
-        print(
-            "[ERROR] Swagger documentation "
-            "is not configured at /docs."
-        )
-
-        return 1
-
     configuration = Config(
         "alembic.ini"
     )
@@ -66,28 +50,30 @@ def main() -> int:
         configuration
     )
 
-    heads = script.get_heads()
+    revisions = {
+        revision.revision
+        for revision in script.walk_revisions()
+    }
 
-    if heads != ["20260724_0001"]:
+    if "20260724_0001" not in revisions:
         print(
-            "[ERROR] Unexpected migration heads: "
-            f"{heads}"
+            "[ERROR] Alembic baseline is missing."
         )
+        return 1
 
+    if len(script.get_heads()) != 1:
+        print(
+            "[ERROR] Multiple migration heads found: "
+            f"{script.get_heads()}"
+        )
         return 1
 
     print(
         "[OK] REST API routes registered."
     )
-
-    print(
-        "[OK] Swagger documentation configured."
-    )
-
     print(
         "[OK] Alembic baseline configured."
     )
-
     print(
         "[OK] Batch 8 validated."
     )

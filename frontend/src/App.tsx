@@ -1,18 +1,47 @@
 import { useState } from "react";
 
-import { AppShell, type PageId } from "./components/AppShell";
+import {
+  AppShell,
+  type PageId,
+} from "./components/AppShell";
+import { BudgetPage } from "./pages/BudgetPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ReceivablesPage } from "./pages/ReceivablesPage";
+import { ReportsPage } from "./pages/ReportsPage";
 
 export function App() {
-  const [activePage, setActivePage] = useState<PageId>("dashboard");
+  const [
+    activePage,
+    setActivePage,
+  ] = useState<PageId>(
+    "dashboard"
+  );
 
   return (
-    <AppShell activePage={activePage} onNavigate={setActivePage}>
-      {activePage === "dashboard" ? <DashboardPage /> : null}
-      {activePage === "expenses" ? <ExpensesPage /> : null}
-      {activePage === "receivables" ? <ReceivablesPage /> : null}
+    <AppShell
+      activePage={activePage}
+      onNavigate={setActivePage}
+    >
+      {activePage === "dashboard"
+        ? <DashboardPage />
+        : null}
+
+      {activePage === "expenses"
+        ? <ExpensesPage />
+        : null}
+
+      {activePage === "receivables"
+        ? <ReceivablesPage />
+        : null}
+
+      {activePage === "budget"
+        ? <BudgetPage />
+        : null}
+
+      {activePage === "reports"
+        ? <ReportsPage />
+        : null}
     </AppShell>
   );
 }

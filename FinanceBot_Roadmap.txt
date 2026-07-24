@@ -9,111 +9,65 @@ Telegram:
 - sem relatorios ou filtros avancados.
 
 Interface web:
-- visualizacao completa;
+- visualizacao e manutencao de despesas;
+- planejamento mensal;
 - filtros e relatorios;
 - graficos;
-- orcamentos;
 - importacoes e exportacoes;
-- administracao e edicao de dados.
+- administracao dos dados.
 
 
 CONCLUIDO
 
 BATCH 0 - Saneamento do repositorio
-- .gitignore;
-- dependencias;
-- testes iniciais;
-- remocao de arquivos gerados.
-
 BATCH 1 - Lookup e normalizacao
-- LookupService;
-- categorias e formas de pagamento normalizadas;
-- aliases e sugestoes.
-
 BATCH 2 - Integracao basica do Telegram
-- comandos;
-- menu;
-- handlers;
-- integracao com services.
-
 BATCH 3 - Regras de dominio
-- validacao de despesas;
-- valores monetarios;
-- transacoes e rollback.
-
 BATCH 4 - Parcelamentos e compartilhamento
-- parcelas;
-- pessoas;
-- valores compartilhados;
-- persistencia do grafo da despesa.
-
 BATCH 5 - Cadastro guiado
-- ConversationHandler;
-- voltar, cancelar e confirmar;
-- fluxo completo de cadastro.
-
 BATCH 5.5 - Participantes em looping
-- uma pessoa por resposta;
-- divisao igual ou valor exato;
-- remocao da ultima pessoa.
-
 BATCH 6 - Valores a receber
-- resumo consolidado;
-- detalhamento por pessoa;
-- baixa de pendencias.
-
 BATCH 7 - Consolidacao do Telegram
-- menu operacional reduzido;
-- ultimos cinco lancamentos;
-- remocao de consultas analiticas do bot;
-- correcao da consulta mensal do repository;
-- documentacao da divisao de responsabilidades.
+BATCH 8 - API REST e migrations
+BATCH 9 - Interface web inicial
+BATCH 10 - Cadastro, edicao e exclusao web
+
+BATCH 11 - Planejamento mensal
+- renda mensal;
+- meta de reserva;
+- limite de gastos;
+- limite diario;
+- alertas de uso;
+- despesas parceladas pelo vencimento;
+- apenas a parte do proprietario em compras compartilhadas.
+
+BATCH 12 - Relatorios e graficos
+- filtros avancados;
+- comparacao mensal;
+- gastos por categoria;
+- ranking de estabelecimentos;
+- visao de parcelamentos.
 
 
 PROXIMOS BATCHES
 
-BATCH 8 - API REST e migrations
-- FastAPI;
-- Alembic;
-- contratos para despesas, pessoas e recebimentos;
-- testes de endpoints.
-
-BATCH 9 - Interface web inicial
-- estrutura React;
-- autenticacao local inicial;
-- consumo da API;
-- listagem e edicao de despesas.
-
-BATCH 10 - Consultas e relatorios web
-- filtros;
-- resumos;
-- graficos;
-- parcelamentos;
-- historico compartilhado.
-
-BATCH 11 - Orcamento
-- salario;
-- metas;
-- reserva;
-- limites e alertas.
-
-BATCH 12 - Importacoes
+BATCH 13 - Importacoes
 - CSV;
 - XLSX;
 - OFX;
 - deduplicacao e historico.
 
-BATCH 13 - Automatizacoes
+BATCH 14 - Automatizacoes
 - resumos;
 - vencimentos;
 - alertas.
 
-BATCH 14 - Inteligencia
+BATCH 15 - Inteligencia
 - linguagem natural;
 - categorizacao;
 - padroes e recomendacoes.
 
-BATCH 15 - Producao
+BATCH 16 - Producao
 - Docker;
 - PostgreSQL;
 - backup;
