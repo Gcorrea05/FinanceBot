@@ -5,7 +5,8 @@ export type PageId =
   | "expenses"
   | "receivables"
   | "budget"
-  | "reports";
+  | "reports"
+  | "imports";
 
 interface AppShellProps {
   activePage: PageId;
@@ -42,6 +43,11 @@ const navigation: Array<{
     id: "reports",
     label: "Relatorios",
     description: "Analises e comparacoes",
+  },
+  {
+    id: "imports",
+    label: "Importacoes",
+    description: "CSV, XLSX e OFX",
   },
 ];
 

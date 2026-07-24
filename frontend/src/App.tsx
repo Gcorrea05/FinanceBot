@@ -9,6 +9,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ReceivablesPage } from "./pages/ReceivablesPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { ImportsPage } from "./pages/ImportsPage";
 
 export function App() {
   const [
@@ -41,6 +42,10 @@ export function App() {
 
       {activePage === "reports"
         ? <ReportsPage />
+        : null}
+
+      {activePage === "imports"
+        ? <ImportsPage />
         : null}
     </AppShell>
   );

@@ -204,3 +204,39 @@ export interface ReportOverview {
   merchants: ReportMerchantItem[];
   installments: ReportInstallmentItem[];
 }
+
+
+export type ImportRowStatus = "ready" | "duplicate" | "invalid" | "imported";
+
+export interface ImportRow {
+  id: number;
+  row_number: number;
+  purchase_date: string | null;
+  purchase_place: string | null;
+  purchase_value: string | null;
+  external_id: string | null;
+  status: ImportRowStatus;
+  error_message: string | null;
+  expense_id: number | null;
+}
+
+export interface ImportBatch {
+  id: number;
+  filename: string;
+  source_type: string;
+  status: string;
+  default_category: string;
+  default_payment_method: string;
+  total_rows: number;
+  ready_rows: number;
+  duplicate_rows: number;
+  invalid_rows: number;
+  imported_rows: number;
+  created_at: string;
+  completed_at: string | null;
+  rows: ImportRow[];
+}
+
+export interface ImportHistoryResponse {
+  items: ImportBatch[];
+}

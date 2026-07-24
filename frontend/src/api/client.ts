@@ -6,6 +6,8 @@ import type {
   ExpenseMutationPayload,
   ExpenseQuery,
   HealthResponse,
+  ImportBatch,
+  ImportHistoryResponse,
   ReceivableDetailResponse,
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
@@ -194,5 +196,32 @@ export const financeApi = {
     return request<ReportOverview>(
       `/reports/overview${buildQuery(params)}`,
     );
+  },
+
+  previewImport(
+    file: File,
+    defaultCategory: string,
+    defaultPaymentMethod: string,
+  ): Promise<ImportBatch> {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("default_category", defaultCategory);
+    form.append("default_payment_method", defaultPaymentMethod);
+    return request<ImportBatch>("/imports/preview", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  confirmImport(batchId: number): Promise<ImportBatch> {
+    return request<ImportBatch>(`/imports/${batchId}/confirm`, { method: "POST" });
+  },
+
+  listImports(): Promise<ImportHistoryResponse> {
+    return request<ImportHistoryResponse>("/imports");
+  },
+
+  getImport(batchId: number): Promise<ImportBatch> {
+    return request<ImportBatch>(`/imports/${batchId}`);
   },
 };

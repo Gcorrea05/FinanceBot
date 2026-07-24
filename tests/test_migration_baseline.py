@@ -8,7 +8,7 @@ def test_current_migration_head():
     )
 
     assert script.get_heads() == [
-        "20260724_0002"
+        "20260724_0003"
     ]
 
     revisions = {
