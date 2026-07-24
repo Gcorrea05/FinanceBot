@@ -45,6 +45,33 @@ export interface ExpenseListResponse {
   offset: number;
 }
 
+export interface ReferenceItem {
+  name: string;
+}
+
+export interface ReferenceListResponse {
+  items: ReferenceItem[];
+}
+
+export interface SharedPersonInput {
+  name: string;
+  amount: string | null;
+}
+
+export interface ExpenseMutationPayload {
+  purchase_date: string;
+  purchase_place: string;
+  purchase_value: string;
+  category: string;
+  payment_method: string;
+  is_installment: boolean;
+  installments: number;
+  first_installment_due_date: string | null;
+  is_shared: boolean;
+  shared_people: SharedPersonInput[];
+  notes: string | null;
+}
+
 export interface ReceivablePersonSummary {
   person_id: number;
   person_name: string;
