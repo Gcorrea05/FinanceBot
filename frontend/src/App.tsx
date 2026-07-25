@@ -11,6 +11,7 @@ import { ExpensesPage } from "./pages/ExpensesPage";
 import { ReceivablesPage } from "./pages/ReceivablesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ImportsPage } from "./pages/ImportsPage";
+import { IntelligencePage } from "./pages/IntelligencePage";
 
 export function App() {
   const [
@@ -51,6 +52,10 @@ export function App() {
 
       {activePage === "automations"
         ? <AutomationsPage />
+        : null}
+
+      {activePage === "intelligence"
+        ? <IntelligencePage />
         : null}
     </AppShell>
   );

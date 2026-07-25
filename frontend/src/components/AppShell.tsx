@@ -7,7 +7,8 @@ export type PageId =
   | "budget"
   | "reports"
   | "imports"
-  | "automations";
+  | "automations"
+  | "intelligence";
 
 interface AppShellProps {
   activePage: PageId;
@@ -54,6 +55,11 @@ const navigation: Array<{
     id: "automations",
     label: "Automacoes",
     description: "Resumos e alertas",
+  },
+  {
+    id: "intelligence",
+    label: "Inteligencia",
+    description: "Padroes e projecoes",
   },
 ];
 

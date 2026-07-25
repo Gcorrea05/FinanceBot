@@ -15,6 +15,8 @@ import type {
   ImportColumnMapping,
   ImportHistoryResponse,
   ImportInspection,
+  IntelligenceOverview,
+  IntelligenceQuery,
   ReceivableDetailResponse,
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
@@ -249,6 +251,18 @@ export const financeApi = {
 
   getImport(batchId: number): Promise<ImportBatch> {
     return request<ImportBatch>(`/imports/${batchId}`);
+  },
+
+  getIntelligenceOverview(
+    query: IntelligenceQuery,
+  ): Promise<IntelligenceOverview> {
+    const parameters = new URLSearchParams({
+      year: String(query.year),
+      month: String(query.month),
+    });
+    return request<IntelligenceOverview>(
+      `/intelligence/overview?${parameters.toString()}`,
+    );
   },
 
   getAutomationSettings(): Promise<AutomationSettings> {
