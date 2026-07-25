@@ -323,3 +323,59 @@ export interface AutomationDelivery {
 export interface AutomationHistoryResponse {
   items: AutomationDelivery[];
 }
+
+
+export interface IntelligenceQuery {
+  year: number;
+  month: number;
+}
+
+export interface IntelligenceSummary {
+  current_total: string;
+  forecast_total: string;
+  historical_average: string;
+  trend_percent: string | null;
+  installment_commitment: string;
+  budget_usage_percent: string | null;
+  budget_status: string;
+  data_months: number;
+}
+
+export interface IntelligenceInsight {
+  code: string;
+  kind: string;
+  severity: string;
+  title: string;
+  message: string;
+  recommendation: string;
+}
+
+export interface IntelligenceAnomaly {
+  expense_id: number;
+  purchase_date: string;
+  purchase_place: string;
+  category: string;
+  amount: string;
+  category_median: string;
+  difference_percent: string;
+}
+
+export interface IntelligenceRecurring {
+  purchase_place: string;
+  category: string;
+  occurrences: number;
+  average_amount: string;
+  last_purchase_date: string;
+  expected_next_date: string;
+}
+
+export interface IntelligenceOverview {
+  year: number;
+  month: number;
+  generated_at: string;
+  summary: IntelligenceSummary;
+  monthly: ReportMonthlyPoint[];
+  insights: IntelligenceInsight[];
+  anomalies: IntelligenceAnomaly[];
+  recurring: IntelligenceRecurring[];
+}

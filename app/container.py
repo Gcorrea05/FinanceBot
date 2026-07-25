@@ -25,6 +25,7 @@ from app.services.expense_management_service import ExpenseManagementService
 from app.services.expense_query_service import ExpenseQueryService
 from app.services.expense_service import ExpenseService
 from app.services.import_service import ImportService
+from app.services.intelligence_service import IntelligenceService
 from app.services.lookup_service import LookupService
 from app.services.receivable_service import ReceivableService
 from app.services.report_service import ReportService
@@ -82,6 +83,11 @@ class Container:
         self.report_service = ReportService(repository=self.report_repository)
         self.automation_service = AutomationService(
             repository=self.automation_repository,
+            budget_service=self.budget_service,
+        )
+        self.intelligence_service = IntelligenceService(
+            repository=self.report_repository,
+            report_service=self.report_service,
             budget_service=self.budget_service,
         )
         self.import_service = ImportService(
