@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { financeApi } from "../api/client";
-import type { Expense, ReceivableSummaryResponse } from "../api/types";
+import type {
+  BudgetOverview,
+  Expense,
+  ReceivableSummaryResponse,
+} from "../api/types";
 import { EmptyState, ErrorState, LoadingState } from "../components/Feedback";
 import { ExpenseTable } from "../components/ExpenseTable";
 import { MetricCard } from "../components/MetricCard";
@@ -9,7 +13,7 @@ import { formatCurrency } from "../utils/formatters";
 
 interface DashboardData {
   expenses: Expense[];
-  expenseTotal: number;
+  budget: BudgetOverview;
   receivables: ReceivableSummaryResponse;
   apiStatus: string;
 }
@@ -28,25 +32,21 @@ export function DashboardPage() {
 
     try {
       const period = currentPeriod();
-      const [health, expenses, receivables] = await Promise.all([
+      const [health, expenses, receivables, budget] = await Promise.all([
         financeApi.ready(),
         financeApi.listExpenses({
-          limit: 100,
+          limit: 5,
           offset: 0,
           month: period.month,
           year: period.year,
         }),
         financeApi.listReceivables(),
+        financeApi.getBudget(period.year, period.month),
       ]);
-
-      const expenseTotal = expenses.items.reduce(
-        (total, expense) => total + Number(expense.purchase_value),
-        0,
-      );
 
       setData({
         expenses: expenses.items,
-        expenseTotal,
+        budget,
         receivables,
         apiStatus: health.status,
       });
@@ -92,8 +92,8 @@ export function DashboardPage() {
       <section className="metric-grid">
         <MetricCard
           label="Gasto no mes"
-          value={formatCurrency(data.expenseTotal)}
-          helper={`${data.expenses.length} lancamento(s) carregado(s)`}
+          value={formatCurrency(data.budget.spent)}
+          helper="Sua parte e parcelas com vencimento no mes"
         />
         <MetricCard
           label="Valores a receber"
@@ -104,7 +104,7 @@ export function DashboardPage() {
           label="Ultimo lancamento"
           value={
             data.expenses[0]
-              ? formatCurrency(data.expenses[0].purchase_value)
+              ? formatCurrency(data.expenses[0].owner_amount)
               : formatCurrency(0)
           }
           helper={data.expenses[0]?.purchase_place ?? "Nenhuma despesa no periodo"}
@@ -120,7 +120,7 @@ export function DashboardPage() {
         </div>
 
         {data.expenses.length ? (
-          <ExpenseTable expenses={data.expenses.slice(0, 5)} />
+          <ExpenseTable expenses={data.expenses} />
         ) : (
           <EmptyState
             title="Nenhuma despesa neste mes"

@@ -28,7 +28,9 @@ class ImportColumnMapping:
     data_start_row: int
     date_column: int
     description_columns: tuple[int, ...]
-    amount_column: int
+    amount_column: int | None = None
+    debit_column: int | None = None
+    credit_column: int | None = None
     external_id_column: int | None = None
     sheet_name: str | None = None
     date_format: str = "auto"
@@ -375,15 +377,35 @@ def _validate_mapping(mapping: ImportColumnMapping, max_columns: int) -> None:
     if not mapping.description_columns:
         raise ImportFileError("Selecione ao menos uma coluna de descricao.")
 
+    has_single_amount = mapping.amount_column is not None
+    has_separate_debit = mapping.debit_column is not None
+
+    if has_single_amount == has_separate_debit:
+        raise ImportFileError(
+            "Escolha uma coluna unica de valor ou uma coluna de debito."
+        )
+
+    if mapping.credit_column is not None and not has_separate_debit:
+        raise ImportFileError(
+            "A coluna de credito so pode ser usada com a coluna de debito."
+        )
+
     required_columns = (
         mapping.date_column,
-        mapping.amount_column,
         *mapping.description_columns,
+        (
+            mapping.amount_column
+            if has_single_amount
+            else mapping.debit_column
+        ),
     )
-    optional_columns = (
-        (mapping.external_id_column,)
-        if mapping.external_id_column is not None
-        else ()
+    optional_columns = tuple(
+        column
+        for column in (
+            mapping.credit_column,
+            mapping.external_id_column,
+        )
+        if column is not None
     )
     for column in (*required_columns, *optional_columns):
         if column < 0 or column >= max_columns:
@@ -417,11 +439,32 @@ def _row_from_values(
         )
         if not place:
             raise ValueError("Descricao ou estabelecimento ausente.")
-        amount = _expense_amount(
-            _cell(values, mapping.amount_column),
-            mapping.decimal_separator,
-            mapping.amount_mode,
-        )
+        if mapping.debit_column is not None:
+            credit_value = _cell(
+                values,
+                mapping.credit_column,
+            )
+            if _clean_text(credit_value):
+                credit_amount = _parse_signed_amount(
+                    credit_value,
+                    mapping.decimal_separator,
+                )
+                if credit_amount != 0:
+                    raise IgnoredImportRow(
+                        "Credito ou estorno ignorado."
+                    )
+
+            amount = _expense_amount(
+                _cell(values, mapping.debit_column),
+                mapping.decimal_separator,
+                "all",
+            )
+        else:
+            amount = _expense_amount(
+                _cell(values, mapping.amount_column),
+                mapping.decimal_separator,
+                mapping.amount_mode,
+            )
         fingerprint = _fingerprint(
             source_type,
             transaction_date,
@@ -506,7 +549,7 @@ def _parse_ofx(content: bytes) -> ParsedImportFile:
             external_id_column=3,
             date_format="ymd",
             decimal_separator="dot",
-            amount_mode="all",
+            amount_mode="negative",
         )
         values: list[object] = [
             _ofx_value(block, "DTPOSTED"),

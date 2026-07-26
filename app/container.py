@@ -27,6 +27,7 @@ from app.services.expense_service import ExpenseService
 from app.services.import_service import ImportService
 from app.services.intelligence_service import IntelligenceService
 from app.services.lookup_service import LookupService
+from app.services.monthly_export_service import MonthlyExportService
 from app.services.receivable_service import ReceivableService
 from app.services.report_service import ReportService
 
@@ -81,6 +82,10 @@ class Container:
             validator=BudgetPlanValidator(),
         )
         self.report_service = ReportService(repository=self.report_repository)
+        self.monthly_export_service = MonthlyExportService(
+            report_repository=self.report_repository,
+            receivable_repository=self.receivable_repository,
+        )
         self.automation_service = AutomationService(
             repository=self.automation_repository,
             budget_service=self.budget_service,

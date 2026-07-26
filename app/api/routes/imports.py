@@ -75,6 +75,8 @@ def _parse_mapping(mapping_json: str | None) -> ImportColumnMapping | None:
         date_column=payload.date_column,
         description_columns=tuple(payload.description_columns),
         amount_column=payload.amount_column,
+        debit_column=payload.debit_column,
+        credit_column=payload.credit_column,
         external_id_column=payload.external_id_column,
         date_format=payload.date_format,
         decimal_separator=payload.decimal_separator,

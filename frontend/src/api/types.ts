@@ -104,7 +104,15 @@ export interface ReceivableDetailResponse {
 export interface ReceivableSettlementResponse {
   receivable_id: number;
   is_settled: boolean;
+  settled_at: string | null;
+}
+
+export interface SettledReceivableItem extends ReceivableItem {
   settled_at: string;
+}
+
+export interface ReceivableHistoryResponse {
+  items: SettledReceivableItem[];
 }
 
 export interface ExpenseQuery {
@@ -218,7 +226,9 @@ export interface ImportColumnMapping {
   data_start_row: number;
   date_column: number;
   description_columns: number[];
-  amount_column: number;
+  amount_column: number | null;
+  debit_column: number | null;
+  credit_column: number | null;
   external_id_column: number | null;
   date_format: ImportDateFormat;
   decimal_separator: ImportDecimalSeparator;

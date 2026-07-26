@@ -2,7 +2,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class ImportColumnMappingRequest(BaseModel):
@@ -10,21 +15,75 @@ class ImportColumnMappingRequest(BaseModel):
     header_row: int | None = Field(default=1, ge=1)
     data_start_row: int = Field(ge=1)
     date_column: int = Field(ge=0)
-    description_columns: list[int] = Field(min_length=1, max_length=3)
-    amount_column: int = Field(ge=0)
-    external_id_column: int | None = Field(default=None, ge=0)
-    date_format: Literal["auto", "dmy", "mdy", "ymd"] = "auto"
-    decimal_separator: Literal["auto", "comma", "dot"] = "auto"
-    amount_mode: Literal["all", "positive", "negative"] = "all"
+    description_columns: list[int] = Field(
+        min_length=1,
+        max_length=3,
+    )
+    amount_column: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    debit_column: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    credit_column: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    external_id_column: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    date_format: Literal[
+        "auto",
+        "dmy",
+        "mdy",
+        "ymd",
+    ] = "auto"
+    decimal_separator: Literal[
+        "auto",
+        "comma",
+        "dot",
+    ] = "auto"
+    amount_mode: Literal[
+        "all",
+        "positive",
+        "negative",
+    ] = "positive"
 
     @field_validator("description_columns")
     @classmethod
-    def validate_description_columns(cls, value: list[int]) -> list[int]:
+    def validate_description_columns(
+        cls,
+        value: list[int],
+    ) -> list[int]:
         if any(column < 0 for column in value):
-            raise ValueError("As colunas de descricao devem ser maiores ou iguais a zero.")
+            raise ValueError(
+                "As colunas de descricao devem ser maiores ou iguais a zero."
+            )
         if len(set(value)) != len(value):
-            raise ValueError("As colunas de descricao nao podem se repetir.")
+            raise ValueError(
+                "As colunas de descricao nao podem se repetir."
+            )
         return value
+
+    @model_validator(mode="after")
+    def validate_amount_columns(self):
+        has_single = self.amount_column is not None
+        has_debit = self.debit_column is not None
+
+        if has_single == has_debit:
+            raise ValueError(
+                "Escolha uma coluna unica de valor ou uma coluna de debito."
+            )
+
+        if self.credit_column is not None and not has_debit:
+            raise ValueError(
+                "A coluna de credito exige uma coluna de debito."
+            )
+
+        return self
 
 
 class ImportInspectionResponse(BaseModel):

@@ -19,7 +19,8 @@ export function ExpenseTable({ expenses, onEdit, onDelete }: ExpenseTableProps) 
             <th>Estabelecimento</th>
             <th>Categoria</th>
             <th>Pagamento</th>
-            <th className="align-right">Valor</th>
+            <th className="align-right">Valor total</th>
+            <th className="align-right">Sua parte</th>
             {showActions ? <th className="align-right">Acoes</th> : null}
           </tr>
         </thead>
@@ -36,8 +37,11 @@ export function ExpenseTable({ expenses, onEdit, onDelete }: ExpenseTableProps) 
               </td>
               <td>{expense.category}</td>
               <td>{expense.payment_method}</td>
-              <td className="align-right strong-cell">
+              <td className="align-right">
                 {formatCurrency(expense.purchase_value)}
+              </td>
+              <td className="align-right strong-cell">
+                {formatCurrency(expense.owner_amount)}
               </td>
               {showActions ? (
                 <td className="align-right">

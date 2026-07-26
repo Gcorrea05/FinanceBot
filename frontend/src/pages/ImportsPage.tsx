@@ -38,11 +38,14 @@ export function ImportsPage() {
   const [dateColumn, setDateColumn] = useState("");
   const [descriptionColumn, setDescriptionColumn] = useState("");
   const [descriptionExtraColumn, setDescriptionExtraColumn] = useState("");
+  const [amountLayout, setAmountLayout] = useState<"single" | "debit_credit">("single");
   const [amountColumn, setAmountColumn] = useState("");
+  const [debitColumn, setDebitColumn] = useState("");
+  const [creditColumn, setCreditColumn] = useState("");
   const [externalIdColumn, setExternalIdColumn] = useState("");
   const [dateFormat, setDateFormat] = useState<ImportDateFormat>("auto");
   const [decimalSeparator, setDecimalSeparator] = useState<ImportDecimalSeparator>("auto");
-  const [amountMode, setAmountMode] = useState<ImportAmountMode>("all");
+  const [amountMode, setAmountMode] = useState<ImportAmountMode>("positive");
 
   async function loadReferencesAndHistory() {
     try {
@@ -80,13 +83,16 @@ export function ImportsPage() {
     setDateColumn("");
     setDescriptionColumn("");
     setDescriptionExtraColumn("");
+    setAmountLayout("single");
     setAmountColumn("");
+    setDebitColumn("");
+    setCreditColumn("");
     setExternalIdColumn("");
     setHeaderRow(1);
     setDataStartRow(2);
     setDateFormat("auto");
     setDecimalSeparator("auto");
-    setAmountMode("all");
+    setAmountMode("positive");
   }
 
   async function inspectSelectedFile(selectedSheet?: string) {
@@ -129,8 +135,16 @@ export function ImportsPage() {
     const parsedDate = numberOrNull(dateColumn);
     const parsedDescription = numberOrNull(descriptionColumn);
     const parsedAmount = numberOrNull(amountColumn);
-    if (parsedDate === null || parsedDescription === null || parsedAmount === null) {
-      throw new Error("Mapeie as colunas de data, descricao e valor.");
+    const parsedDebit = numberOrNull(debitColumn);
+    const parsedCredit = numberOrNull(creditColumn);
+    if (parsedDate === null || parsedDescription === null) {
+      throw new Error("Mapeie as colunas de data e descricao.");
+    }
+    if (amountLayout === "single" && parsedAmount === null) {
+      throw new Error("Selecione a coluna unica de valor.");
+    }
+    if (amountLayout === "debit_credit" && parsedDebit === null) {
+      throw new Error("Selecione a coluna de debito.");
     }
     const descriptions = [parsedDescription];
     const extra = numberOrNull(descriptionExtraColumn);
@@ -141,7 +155,9 @@ export function ImportsPage() {
       data_start_row: dataStartRow,
       date_column: parsedDate,
       description_columns: descriptions,
-      amount_column: parsedAmount,
+      amount_column: amountLayout === "single" ? parsedAmount : null,
+      debit_column: amountLayout === "debit_credit" ? parsedDebit : null,
+      credit_column: amountLayout === "debit_credit" ? parsedCredit : null,
       external_id_column: numberOrNull(externalIdColumn),
       date_format: dateFormat,
       decimal_separator: decimalSeparator,
@@ -194,7 +210,7 @@ export function ImportsPage() {
         <div>
           <span className="eyebrow">Entrada de dados</span>
           <h1>Importacoes</h1>
-          <p>O FinanceBot nao exige nomes de colunas. Voce escolhe quais colunas representam data, descricao e valor.</p>
+          <p>O FinanceBot nao exige nomes de colunas. Voce escolhe as colunas sem depender dos nomes do arquivo. Creditos e estornos podem ser ignorados com seguranca.</p>
         </div>
       </header>
 
@@ -299,13 +315,61 @@ export function ImportsPage() {
                     {columnOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </label>
-                <label>
-                  Coluna do valor
-                  <select value={amountColumn} onChange={(event) => setAmountColumn(event.target.value)}>
-                    <option value="">Selecione</option>
-                    {columnOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
+              <label>
+                Estrutura dos valores
+                <select
+                  value={amountLayout}
+                  onChange={(event) => {
+                    const value = event.target.value as "single" | "debit_credit";
+                    setAmountLayout(value);
+                    setAmountColumn("");
+                    setDebitColumn("");
+                    setCreditColumn("");
+                  }}
+                >
+                  <option value="single">Uma coluna com valores</option>
+                  <option value="debit_credit">Colunas separadas de debito e credito</option>
+                </select>
+              </label>
+
+              {amountLayout === "single" ? (
+                <>
+                  <label>
+                    Coluna de valor
+                    <select value={amountColumn} onChange={(event) => setAmountColumn(event.target.value)}>
+                      <option value="">Selecione</option>
+                      {columnOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+
+                  <label>
+                    Sinal que representa despesa
+                    <select value={amountMode} onChange={(event) => setAmountMode(event.target.value as ImportAmountMode)}>
+                      <option value="positive">Valores positivos</option>
+                      <option value="negative">Valores negativos</option>
+                    </select>
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label>
+                    Coluna de debito
+                    <select value={debitColumn} onChange={(event) => setDebitColumn(event.target.value)}>
+                      <option value="">Selecione</option>
+                      {columnOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+
+                  <label>
+                    Coluna de credito ou estorno
+                    <select value={creditColumn} onChange={(event) => setCreditColumn(event.target.value)}>
+                      <option value="">Nao existe</option>
+                      {columnOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+
                 <label>
                   Identificador opcional
                   <select value={externalIdColumn} onChange={(event) => setExternalIdColumn(event.target.value)}>
@@ -328,14 +392,6 @@ export function ImportsPage() {
                     <option value="auto">Detectar automaticamente</option>
                     <option value="comma">Virgula</option>
                     <option value="dot">Ponto</option>
-                  </select>
-                </label>
-                <label>
-                  Valores que representam despesas
-                  <select value={amountMode} onChange={(event) => setAmountMode(event.target.value as ImportAmountMode)}>
-                    <option value="all">Todos, usando valor absoluto</option>
-                    <option value="positive">Somente valores positivos</option>
-                    <option value="negative">Somente valores negativos</option>
                   </select>
                 </label>
               </div>

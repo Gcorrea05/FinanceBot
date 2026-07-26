@@ -34,6 +34,11 @@ class ReceivableItem:
     amount: Decimal
 
 
+@dataclass(frozen=True)
+class SettledReceivableItem(ReceivableItem):
+    settled_at: datetime
+
+
 class ReceivableService:
     CENT = Decimal("0.01")
 
@@ -122,6 +127,28 @@ class ReceivableService:
             )
         ]
 
+    def list_recent_settled(
+        self,
+        *,
+        limit: int = 20,
+    ) -> list[SettledReceivableItem]:
+        return [
+            SettledReceivableItem(
+                receivable_id=row.receivable_id,
+                expense_id=row.expense_id,
+                person_id=row.person_id,
+                person_name=row.person_name,
+                purchase_place=row.purchase_place,
+                purchase_date=row.purchase_date,
+                amount=self._money(row.amount),
+                settled_at=row.settled_at,
+            )
+            for row in (
+                self.receivable_repository
+                .list_recent_settled(limit=limit)
+            )
+        ]
+
     def settle(
         self,
         receivable_id: int,
@@ -136,6 +163,25 @@ class ReceivableService:
                 (
                     "A pendencia nao existe "
                     "ou ja foi recebida."
+                )
+            )
+
+        return receivable
+
+    def reopen(
+        self,
+        receivable_id: int,
+    ):
+        receivable = (
+            self.receivable_repository
+            .reopen(receivable_id)
+        )
+
+        if receivable is None:
+            raise ReceivableNotFoundError(
+                (
+                    "O recebimento nao existe "
+                    "ou ja esta em aberto."
                 )
             )
 

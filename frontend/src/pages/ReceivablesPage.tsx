@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { financeApi } from "../api/client";
 import type {
   ReceivableDetailResponse,
+  ReceivableHistoryResponse,
   ReceivablePersonSummary,
   ReceivableSummaryResponse,
 } from "../api/types";
@@ -11,6 +12,7 @@ import { formatCurrency, formatDate } from "../utils/formatters";
 
 export function ReceivablesPage() {
   const [summary, setSummary] = useState<ReceivableSummaryResponse | null>(null);
+  const [history, setHistory] = useState<ReceivableHistoryResponse>({ items: [] });
   const [selectedPerson, setSelectedPerson] = useState<ReceivablePersonSummary | null>(null);
   const [details, setDetails] = useState<ReceivableDetailResponse | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -20,7 +22,12 @@ export function ReceivablesPage() {
     setError(null);
 
     try {
-      setSummary(await financeApi.listReceivables());
+      const [summaryResponse, historyResponse] = await Promise.all([
+        financeApi.listReceivables(),
+        financeApi.listSettledReceivables(),
+      ]);
+      setSummary(summaryResponse);
+      setHistory(historyResponse);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -52,6 +59,17 @@ export function ReceivablesPage() {
     }
   }
 
+  async function refreshSelectedPerson() {
+    if (!selectedPerson) return;
+    const refreshed = await financeApi.listPersonReceivables(selectedPerson.person_id);
+    setDetails(refreshed);
+
+    if (!refreshed.items.length) {
+      setSelectedPerson(null);
+      setDetails(null);
+    }
+  }
+
   async function settle(receivableId: number) {
     const confirmed = window.confirm("Confirmar que este valor foi recebido?");
 
@@ -62,21 +80,32 @@ export function ReceivablesPage() {
     try {
       await financeApi.settleReceivable(receivableId);
       await loadSummary();
-
-      if (selectedPerson) {
-        const refreshed = await financeApi.listPersonReceivables(selectedPerson.person_id);
-        setDetails(refreshed);
-
-        if (!refreshed.items.length) {
-          setSelectedPerson(null);
-          setDetails(null);
-        }
-      }
+      await refreshSelectedPerson();
     } catch (settleError) {
       setError(
         settleError instanceof Error
           ? settleError.message
           : "Nao foi possivel registrar o recebimento.",
+      );
+    }
+  }
+
+  async function reopen(receivableId: number) {
+    const confirmed = window.confirm(
+      "Desfazer este recebimento e devolver o valor para as pendencias?",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await financeApi.reopenReceivable(receivableId);
+      await loadSummary();
+      await refreshSelectedPerson();
+    } catch (reopenError) {
+      setError(
+        reopenError instanceof Error
+          ? reopenError.message
+          : "Nao foi possivel desfazer o recebimento.",
       );
     }
   }
@@ -87,7 +116,7 @@ export function ReceivablesPage() {
         <div>
           <span className="eyebrow">Compartilhamentos</span>
           <h1>Valores a receber</h1>
-          <p>Consulte pendencias e registre recebimentos.</p>
+          <p>Consulte pendencias, registre recebimentos e corrija baixas feitas por engano.</p>
         </div>
         {summary ? (
           <div className="headline-total">
@@ -181,6 +210,40 @@ export function ReceivablesPage() {
           </section>
         </div>
       )}
+
+      <section className="panel" style={{ marginTop: "1.5rem" }}>
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">Historico recente</span>
+            <h2>Valores marcados como recebidos</h2>
+          </div>
+        </div>
+
+        {!history.items.length ? (
+          <p className="empty-copy">Nenhum recebimento registrado recentemente.</p>
+        ) : (
+          <div className="receivable-items">
+            {history.items.map((item) => (
+              <article className="receivable-item" key={item.receivable_id}>
+                <div>
+                  <strong>{item.person_name} - {item.purchase_place}</strong>
+                  <span>Recebido em {formatDate(item.settled_at)}</span>
+                </div>
+                <div className="receivable-actions">
+                  <strong>{formatCurrency(item.amount)}</strong>
+                  <button
+                    className="secondary-button compact"
+                    type="button"
+                    onClick={() => void reopen(item.receivable_id)}
+                  >
+                    Desfazer recebimento
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
