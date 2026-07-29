@@ -104,7 +104,15 @@ export interface ReceivableDetailResponse {
 export interface ReceivableSettlementResponse {
   receivable_id: number;
   is_settled: boolean;
+  settled_at: string | null;
+}
+
+export interface SettledReceivableItem extends ReceivableItem {
   settled_at: string;
+}
+
+export interface ReceivableHistoryResponse {
+  items: SettledReceivableItem[];
 }
 
 export interface ExpenseQuery {
@@ -218,7 +226,9 @@ export interface ImportColumnMapping {
   data_start_row: number;
   date_column: number;
   description_columns: number[];
-  amount_column: number;
+  amount_column: number | null;
+  debit_column: number | null;
+  credit_column: number | null;
   external_id_column: number | null;
   date_format: ImportDateFormat;
   decimal_separator: ImportDecimalSeparator;
@@ -378,4 +388,37 @@ export interface IntelligenceOverview {
   insights: IntelligenceInsight[];
   anomalies: IntelligenceAnomaly[];
   recurring: IntelligenceRecurring[];
+}
+export interface DashboardComparison {
+  previous_month_total: string;
+  previous_month_change_percent: string | null;
+  year_ago_total: string;
+  year_ago_change_percent: string | null;
+}
+
+export interface DashboardDailyPoint {
+  day: number;
+  total: string;
+}
+
+export interface DashboardOverview {
+  year: number;
+  month: number;
+  spent: string;
+  planned_income: string | null;
+  reserve_target: string | null;
+  budget_remaining: string | null;
+  budget_status: string;
+  receivables: string;
+  forecast_total: string;
+  comparison: DashboardComparison;
+  categories: ReportCategoryItem[];
+  daily: DashboardDailyPoint[];
+  recent_expenses: Expense[];
+}
+
+export interface FinanceAgentResponse {
+  intent: string;
+  answer: string;
+  data: Record<string, unknown>;
 }

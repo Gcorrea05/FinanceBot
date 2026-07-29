@@ -78,6 +78,17 @@ class ReportRepository:
             end_date,
         )
 
+    @staticmethod
+    def _detail_options():
+        return (
+            selectinload(Expense.category),
+            selectinload(Expense.payment_method),
+            selectinload(Expense.installments),
+            selectinload(Expense.people).selectinload(
+                ExpensePerson.person
+            ),
+        )
+
     def list_for_period(
         self,
         *,
@@ -103,22 +114,7 @@ class ReportRepository:
 
         statement = (
             select(Expense)
-            .options(
-                selectinload(
-                    Expense.category
-                ),
-                selectinload(
-                    Expense.payment_method
-                ),
-                selectinload(
-                    Expense.installments
-                ),
-                selectinload(
-                    Expense.people
-                ).selectinload(
-                    ExpensePerson.person
-                ),
-            )
+            .options(*self._detail_options())
             .where(
                 or_(
                     and_(
@@ -145,16 +141,12 @@ class ReportRepository:
 
         if category:
             statement = statement.where(
-                Expense.category.has(
-                    name=category
-                )
+                Expense.category.has(name=category)
             )
 
         if payment_method:
             statement = statement.where(
-                Expense.payment_method.has(
-                    name=payment_method
-                )
+                Expense.payment_method.has(name=payment_method)
             )
 
         if place:
@@ -165,7 +157,40 @@ class ReportRepository:
             )
 
         return list(
-            self.session.scalars(
-                statement
-            ).unique().all()
+            self.session.scalars(statement).unique().all()
+        )
+
+    def list_purchases_for_month(
+        self,
+        *,
+        year: int,
+        month: int,
+    ) -> list[Expense]:
+        (
+            start_datetime,
+            end_datetime,
+            _,
+            _,
+        ) = self._bounds(
+            start_year=year,
+            start_month=month,
+            end_year=year,
+            end_month=month,
+        )
+
+        statement = (
+            select(Expense)
+            .options(*self._detail_options())
+            .where(
+                Expense.purchase_date >= start_datetime,
+                Expense.purchase_date < end_datetime,
+            )
+            .order_by(
+                Expense.purchase_date.asc(),
+                Expense.id.asc(),
+            )
+        )
+
+        return list(
+            self.session.scalars(statement).unique().all()
         )

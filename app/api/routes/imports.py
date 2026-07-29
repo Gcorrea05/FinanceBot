@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from pydantic import ValidationError
@@ -12,7 +13,6 @@ from app.api.schemas.imports import (
     ImportRowResponse,
 )
 from app.container import Container
-from app.database.models import ImportBatch
 from app.imports.parser import ImportColumnMapping, ImportFileError
 
 
@@ -21,7 +21,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 
-def serialize_batch(batch: ImportBatch, include_rows: bool = True) -> ImportBatchResponse:
+def serialize_batch(batch: Any, include_rows: bool = True) -> ImportBatchResponse:
     return ImportBatchResponse(
         id=batch.id,
         filename=batch.filename,
@@ -75,6 +75,8 @@ def _parse_mapping(mapping_json: str | None) -> ImportColumnMapping | None:
         date_column=payload.date_column,
         description_columns=tuple(payload.description_columns),
         amount_column=payload.amount_column,
+        debit_column=payload.debit_column,
+        credit_column=payload.credit_column,
         external_id_column=payload.external_id_column,
         date_format=payload.date_format,
         decimal_separator=payload.decimal_separator,

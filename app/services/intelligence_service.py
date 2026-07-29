@@ -125,10 +125,13 @@ class IntelligenceService:
         previous = [
             point.total
             for point in history.monthly
-            if (point.year, point.month) != (year, month)
+            if (
+                (point.year, point.month) != (year, month)
+                and point.total > 0
+            )
         ]
         historical_average = self._average(previous)
-        data_months = sum(1 for value in previous if value > 0)
+        data_months = len(previous)
         forecast_total = self._forecast(
             current_total=current_total,
             historical_average=historical_average,
@@ -219,40 +222,99 @@ class IntelligenceService:
         by_category: dict[str, list[Decimal]] = {}
 
         for expense in expenses:
-            amount = self._owner_total(expense)
-            if amount <= 0:
-                continue
-            by_category.setdefault(expense.category.name, []).append(amount)
+            category = expense.category.name
+            if expense.is_installment:
+                purchase_total = self._money(
+                    expense.purchase_value
+                )
+                owner_total = self._owner_total(expense)
+                if purchase_total <= 0 or owner_total <= 0:
+                    continue
+                owner_ratio = owner_total / purchase_total
+                for installment in expense.installments:
+                    amount = self._money(
+                        self._money(
+                            installment.installment_value
+                        )
+                        * owner_ratio
+                    )
+                    if amount > 0:
+                        by_category.setdefault(
+                            category,
+                            [],
+                        ).append(amount)
+            else:
+                amount = self._owner_total(expense)
+                if amount > 0:
+                    by_category.setdefault(
+                        category,
+                        [],
+                    ).append(amount)
 
         anomalies: list[IntelligenceAnomaly] = []
 
         for expense in expenses:
-            purchase_date = expense.purchase_date.date()
-            if (purchase_date.year, purchase_date.month) != (year, month):
-                continue
-
-            amount = self._owner_total(expense)
-            values = by_category.get(expense.category.name, [])
+            amount = self.report_service.contribution_for_month(
+                expense=expense,
+                year=year,
+                month=month,
+            )
+            values = by_category.get(
+                expense.category.name,
+                [],
+            )
             if amount <= 0 or len(values) < 4:
                 continue
 
-            median = self._money(statistics.median(values))
-            deviations = [abs(value - median) for value in values]
-            mad = self._money(statistics.median(deviations))
+            median = self._money(
+                statistics.median(values)
+            )
+            deviations = [
+                abs(value - median)
+                for value in values
+            ]
+            mad = self._money(
+                statistics.median(deviations)
+            )
             threshold = (
-                median + max(mad * Decimal('3.00'), Decimal('50.00'))
+                median + max(
+                    mad * Decimal('3.00'),
+                    Decimal('50.00'),
+                )
                 if mad > 0
-                else max(median * Decimal('2.00'), median + Decimal('50.00'))
+                else max(
+                    median * Decimal('2.00'),
+                    median + Decimal('50.00'),
+                )
             )
 
-            if amount <= threshold or amount <= median * Decimal('1.50'):
+            if (
+                amount <= threshold
+                or amount <= median * Decimal('1.50')
+            ):
                 continue
 
-            difference = self._change_percent(amount, median) or Decimal('0.00')
+            effective_date = expense.purchase_date.date()
+            if expense.is_installment:
+                due_dates = [
+                    item.due_date
+                    for item in expense.installments
+                    if (
+                        item.due_date.year == year
+                        and item.due_date.month == month
+                    )
+                ]
+                if due_dates:
+                    effective_date = min(due_dates)
+
+            difference = (
+                self._change_percent(amount, median)
+                or Decimal('0.00')
+            )
             anomalies.append(
                 IntelligenceAnomaly(
                     expense_id=expense.id,
-                    purchase_date=purchase_date,
+                    purchase_date=effective_date,
                     purchase_place=expense.purchase_place,
                     category=expense.category.name,
                     amount=amount,
@@ -261,7 +323,12 @@ class IntelligenceService:
                 )
             )
 
-        anomalies.sort(key=lambda item: (-item.difference_percent, -item.amount))
+        anomalies.sort(
+            key=lambda item: (
+                -item.difference_percent,
+                -item.amount,
+            )
+        )
         return anomalies[:8]
 
     def _find_recurring(

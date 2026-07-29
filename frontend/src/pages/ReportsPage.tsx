@@ -118,6 +118,9 @@ export function ReportsPage() {
   const [loading, setLoading] =
     useState(true);
 
+  const [exporting, setExporting] =
+    useState(false);
+
   const [error, setError] =
     useState<string | null>(
       null
@@ -199,6 +202,35 @@ export function ReportsPage() {
   ) {
     event.preventDefault();
     void load();
+  }
+
+
+  async function exportMonthlyExcel() {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const blob = await financeApi.downloadMonthlyExcel(
+        endYear,
+        endMonth,
+      );
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `financebot_relatorio_${endYear}_${String(endMonth).padStart(2, "0")}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "Nao foi possivel exportar o Excel.",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
 
   function clearFilters() {
@@ -422,6 +454,17 @@ export function ReportsPage() {
               type="button"
             >
               Limpar
+            </button>
+
+            <button
+              className="secondary-button"
+              disabled={exporting}
+              onClick={() => void exportMonthlyExcel()}
+              type="button"
+            >
+              {exporting
+                ? "Gerando Excel..."
+                : `Exportar ${String(endMonth).padStart(2, "0")}/${endYear}`}
             </button>
 
             <button

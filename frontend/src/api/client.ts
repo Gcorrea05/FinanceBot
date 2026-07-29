@@ -6,6 +6,8 @@ import type {
   AutomationSettingsPayload,
   BudgetOverview,
   BudgetPlanPayload,
+  DashboardOverview,
+  FinanceAgentResponse,
   Expense,
   ExpenseListResponse,
   ExpenseMutationPayload,
@@ -18,6 +20,7 @@ import type {
   IntelligenceOverview,
   IntelligenceQuery,
   ReceivableDetailResponse,
+  ReceivableHistoryResponse,
   ReceivableSettlementResponse,
   ReceivableSummaryResponse,
   ReferenceListResponse,
@@ -85,6 +88,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+async function download(path: string): Promise<Blob> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${resolveApiUrl()}${path}`, {
+      headers: {
+        Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+    });
+  } catch (error) {
+    throw new ApiError(
+      "Nao foi possivel conectar com a API do FinanceBot.",
+      0,
+      error,
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(
+      `A API retornou o status ${response.status}.`,
+      response.status,
+    );
+  }
+
+  return response.blob();
 }
 
 function buildQuery(params: object): string {
@@ -183,6 +213,19 @@ export const financeApi = {
     );
   },
 
+  listSettledReceivables(): Promise<ReceivableHistoryResponse> {
+    return request<ReceivableHistoryResponse>(
+      "/receivables/settled",
+    );
+  },
+
+  reopenReceivable(receivableId: number): Promise<ReceivableSettlementResponse> {
+    return request<ReceivableSettlementResponse>(
+      `/receivables/${receivableId}/reopen`,
+      { method: "POST" },
+    );
+  },
+
   getBudget(year: number, month: number): Promise<BudgetOverview> {
     return request<BudgetOverview>(`/budgets/${year}/${month}`);
   },
@@ -204,6 +247,15 @@ export const financeApi = {
   ): Promise<ReportOverview> {
     return request<ReportOverview>(
       `/reports/overview${buildQuery(params)}`,
+    );
+  },
+
+  downloadMonthlyExcel(
+    year: number,
+    month: number,
+  ): Promise<Blob> {
+    return download(
+      `/exports/monthly.xlsx?year=${year}&month=${month}`,
     );
   },
 
@@ -294,6 +346,28 @@ export const financeApi = {
     return request<AutomationRunResponse>(
       "/automations/run",
       { method: "POST" },
+    );
+  },
+
+  getDashboard(
+    year: number,
+    month: number,
+  ): Promise<DashboardOverview> {
+    return request<DashboardOverview>(
+      `/dashboard/overview?year=${year}&month=${month}`,
+    );
+  },
+
+  askFinanceAgent(
+    question: string,
+  ): Promise<FinanceAgentResponse> {
+    return jsonRequest<
+      { question: string },
+      FinanceAgentResponse
+    >(
+      "/agent/query",
+      "POST",
+      { question },
     );
   },
 

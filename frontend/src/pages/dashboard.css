@@ -1,0 +1,71 @@
+.dashboard-comparison-grid,
+.dashboard-analysis-grid {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-comparison-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-analysis-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+}
+
+.compact-panel strong {
+  display: block;
+  font-size: 1.6rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.compact-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.daily-heatmap {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(52px, 1fr));
+  gap: 0.5rem;
+}
+
+.heatmap-day {
+  background: var(--primary);
+  border-radius: 0.75rem;
+  color: white;
+  min-height: 58px;
+  padding: 0.55rem;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.heatmap-day:hover {
+  transform: translateY(-2px);
+}
+
+.heatmap-day span,
+.heatmap-day small {
+  display: block;
+}
+
+.heatmap-day span {
+  font-weight: 700;
+}
+
+.heatmap-day small {
+  font-size: 0.68rem;
+  margin-top: 0.3rem;
+}
+
+@media (max-width: 980px) {
+  .dashboard-comparison-grid,
+  .dashboard-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .daily-heatmap {
+    grid-template-columns: repeat(4, minmax(52px, 1fr));
+  }
+}

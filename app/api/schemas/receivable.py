@@ -30,6 +30,12 @@ class ReceivableItemResponse(BaseModel):
     amount: Decimal
 
 
+class SettledReceivableItemResponse(
+    ReceivableItemResponse
+):
+    settled_at: datetime
+
+
 class ReceivableDetailResponse(BaseModel):
     person_id: int
     person_name: str
@@ -37,7 +43,11 @@ class ReceivableDetailResponse(BaseModel):
     total: Decimal
 
 
+class ReceivableHistoryResponse(BaseModel):
+    items: list[SettledReceivableItemResponse]
+
+
 class ReceivableSettlementResponse(BaseModel):
     receivable_id: int
     is_settled: bool
-    settled_at: datetime
+    settled_at: datetime | None

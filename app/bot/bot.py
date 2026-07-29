@@ -26,6 +26,7 @@ from app.bot.handlers.start import (
     unknown_command,
 )
 from app.config import settings
+from app.core.logging import configure_logging
 
 
 logger = logging.getLogger(__name__)
@@ -165,6 +166,8 @@ class FinanceBot:
         )
 
     def run(self) -> None:
+        configure_logging("telegram")
+
         logger.info(
             "FinanceBot iniciado."
         )

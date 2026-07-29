@@ -35,6 +35,8 @@ it("sends explicit mapping with the preview request", async () => {
     date_column: 0,
     description_columns: [1],
     amount_column: 2,
+    debit_column: null,
+    credit_column: null,
     external_id_column: null,
     date_format: "dmy",
     decimal_separator: "comma",

@@ -331,6 +331,24 @@ class ReportService:
             installments=installment_items,
         )
 
+    def contribution_for_month(
+        self,
+        *,
+        expense: Expense,
+        year: int,
+        month: int,
+    ) -> Decimal:
+        contributions = self._monthly_contributions(
+            expense=expense,
+            month_keys={(year, month)},
+        )
+        return self._money(
+            contributions.get(
+                (year, month),
+                Decimal("0.00"),
+            )
+        )
+
     def _monthly_contributions(
         self,
         *,
