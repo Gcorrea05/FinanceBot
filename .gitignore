@@ -81,3 +81,9 @@ frontend/.env.*
 logs/
 backups/
 data/reports/
+.env
+logs/
+backups/
+data/reports/
+*.db-wal
+*.db-shm
