@@ -1,0 +1,58 @@
+name: FinanceBot CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Backend tests
+        env:
+          DATABASE_URL: sqlite:///data/ci.db
+          TELEGRAM_TOKEN: ci-placeholder-token
+          TRUSTED_HOSTS: localhost,127.0.0.1,testserver
+        run: |
+          python -m compileall -q app scripts tests migrations
+          python -m pytest -q
+          python -m scripts.check_batch152
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Frontend validation
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run test
+          npm run build
