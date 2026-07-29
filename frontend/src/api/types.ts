@@ -389,3 +389,36 @@ export interface IntelligenceOverview {
   anomalies: IntelligenceAnomaly[];
   recurring: IntelligenceRecurring[];
 }
+export interface DashboardComparison {
+  previous_month_total: string;
+  previous_month_change_percent: string | null;
+  year_ago_total: string;
+  year_ago_change_percent: string | null;
+}
+
+export interface DashboardDailyPoint {
+  day: number;
+  total: string;
+}
+
+export interface DashboardOverview {
+  year: number;
+  month: number;
+  spent: string;
+  planned_income: string | null;
+  reserve_target: string | null;
+  budget_remaining: string | null;
+  budget_status: string;
+  receivables: string;
+  forecast_total: string;
+  comparison: DashboardComparison;
+  categories: ReportCategoryItem[];
+  daily: DashboardDailyPoint[];
+  recent_expenses: Expense[];
+}
+
+export interface FinanceAgentResponse {
+  intent: string;
+  answer: string;
+  data: Record<string, unknown>;
+}

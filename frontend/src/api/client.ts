@@ -6,6 +6,8 @@ import type {
   AutomationSettingsPayload,
   BudgetOverview,
   BudgetPlanPayload,
+  DashboardOverview,
+  FinanceAgentResponse,
   Expense,
   ExpenseListResponse,
   ExpenseMutationPayload,
@@ -344,6 +346,28 @@ export const financeApi = {
     return request<AutomationRunResponse>(
       "/automations/run",
       { method: "POST" },
+    );
+  },
+
+  getDashboard(
+    year: number,
+    month: number,
+  ): Promise<DashboardOverview> {
+    return request<DashboardOverview>(
+      `/dashboard/overview?year=${year}&month=${month}`,
+    );
+  },
+
+  askFinanceAgent(
+    question: string,
+  ): Promise<FinanceAgentResponse> {
+    return jsonRequest<
+      { question: string },
+      FinanceAgentResponse
+    >(
+      "/agent/query",
+      "POST",
+      { question },
     );
   },
 

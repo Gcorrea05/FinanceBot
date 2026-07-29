@@ -1,55 +1,64 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { financeApi } from "../api/client";
-import type {
-  BudgetOverview,
-  Expense,
-  ReceivableSummaryResponse,
-} from "../api/types";
-import { EmptyState, ErrorState, LoadingState } from "../components/Feedback";
+import type { DashboardOverview } from "../api/types";
+import { BreakdownBars } from "../components/BreakdownBars";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "../components/Feedback";
 import { ExpenseTable } from "../components/ExpenseTable";
 import { MetricCard } from "../components/MetricCard";
 import { formatCurrency } from "../utils/formatters";
+import "./dashboard.css";
 
-interface DashboardData {
-  expenses: Expense[];
-  budget: BudgetOverview;
-  receivables: ReceivableSummaryResponse;
-  apiStatus: string;
-}
 
-function currentPeriod(): { month: number; year: number } {
+function currentPeriod(): {
+  month: number;
+  year: number;
+} {
   const now = new Date();
-  return { month: now.getMonth() + 1, year: now.getFullYear() };
+  return {
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  };
 }
+
+
+function formatChange(value: string | null): string {
+  if (value === null) {
+    return "Sem base comparavel";
+  }
+  const numeric = Number(value);
+  const prefix = numeric > 0 ? "+" : "";
+  return `${prefix}${numeric.toFixed(2)}%`;
+}
+
 
 export function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<DashboardOverview | null>(null);
+  const [apiStatus, setApiStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
-
     try {
       const period = currentPeriod();
-      const [health, expenses, receivables, budget] = await Promise.all([
+      const [health, dashboard] = await Promise.all([
         financeApi.ready(),
-        financeApi.listExpenses({
-          limit: 5,
-          offset: 0,
-          month: period.month,
-          year: period.year,
-        }),
-        financeApi.listReceivables(),
-        financeApi.getBudget(period.year, period.month),
+        financeApi.getDashboard(
+          period.year,
+          period.month,
+        ),
       ]);
-
-      setData({
-        expenses: expenses.items,
-        budget,
-        receivables,
-        apiStatus: health.status,
-      });
+      setApiStatus(health.status);
+      setData(dashboard);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -65,7 +74,10 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <PageFrame title="Visao geral" subtitle="Resumo financeiro do mes atual.">
+      <PageFrame
+        title="Visao geral"
+        subtitle="Centro de decisao financeira do mes atual."
+      >
         <ErrorState
           title="API indisponivel"
           message={error}
@@ -77,7 +89,10 @@ export function DashboardPage() {
 
   if (!data) {
     return (
-      <PageFrame title="Visao geral" subtitle="Resumo financeiro do mes atual.">
+      <PageFrame
+        title="Visao geral"
+        subtitle="Centro de decisao financeira do mes atual."
+      >
         <LoadingState />
       </PageFrame>
     );
@@ -86,29 +101,103 @@ export function DashboardPage() {
   return (
     <PageFrame
       title="Visao geral"
-      subtitle="Resumo financeiro do mes atual."
-      status={data.apiStatus === "ready" ? "API conectada" : data.apiStatus}
+      subtitle="Centro de decisao financeira do mes atual."
+      status={
+        apiStatus === "ready"
+          ? "API conectada"
+          : apiStatus
+      }
     >
       <section className="metric-grid">
         <MetricCard
           label="Gasto no mes"
-          value={formatCurrency(data.budget.spent)}
-          helper="Sua parte e parcelas com vencimento no mes"
+          value={formatCurrency(data.spent)}
+          helper="Sua parte e parcelas do mes"
+        />
+        <MetricCard
+          label="Limite restante"
+          value={
+            data.budget_remaining === null
+              ? "Nao configurado"
+              : formatCurrency(data.budget_remaining)
+          }
+          helper={`Situacao: ${data.budget_status}`}
         />
         <MetricCard
           label="Valores a receber"
-          value={formatCurrency(data.receivables.total_general)}
-          helper={`${data.receivables.people.length} pessoa(s) com pendencia`}
+          value={formatCurrency(data.receivables)}
+          helper="Pendencias ainda abertas"
         />
         <MetricCard
-          label="Ultimo lancamento"
-          value={
-            data.expenses[0]
-              ? formatCurrency(data.expenses[0].owner_amount)
-              : formatCurrency(0)
-          }
-          helper={data.expenses[0]?.purchase_place ?? "Nenhuma despesa no periodo"}
+          label="Projecao do mes"
+          value={formatCurrency(data.forecast_total)}
+          helper="Estimativa explicavel, nao saldo bancario"
         />
+      </section>
+
+      <section className="dashboard-comparison-grid">
+        <article className="panel compact-panel">
+          <span className="eyebrow">Comparacao</span>
+          <h2>Mes anterior</h2>
+          <strong>
+            {formatCurrency(
+              data.comparison.previous_month_total,
+            )}
+          </strong>
+          <p>
+            {formatChange(
+              data.comparison.previous_month_change_percent,
+            )}
+          </p>
+        </article>
+
+        <article className="panel compact-panel">
+          <span className="eyebrow">Comparacao</span>
+          <h2>Mesmo mes do ano anterior</h2>
+          <strong>
+            {formatCurrency(
+              data.comparison.year_ago_total,
+            )}
+          </strong>
+          <p>
+            {formatChange(
+              data.comparison.year_ago_change_percent,
+            )}
+          </p>
+        </article>
+
+        <article className="panel compact-panel">
+          <span className="eyebrow">Planejamento</span>
+          <h2>Renda planejada</h2>
+          <strong>
+            {data.planned_income === null
+              ? "Nao configurada"
+              : formatCurrency(data.planned_income)}
+          </strong>
+          <p>Nao representa saldo em conta.</p>
+        </article>
+      </section>
+
+      <section className="dashboard-analysis-grid">
+        <article className="panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Distribuicao</span>
+              <h2>Gastos por categoria</h2>
+            </div>
+          </div>
+          <BreakdownBars items={data.categories} />
+        </article>
+
+        <article className="panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Calendario</span>
+              <h2>Dias com maior gasto</h2>
+            </div>
+          </div>
+          <DailyHeatmap items={data.daily} />
+        </article>
       </section>
 
       <section className="panel">
@@ -119,18 +208,63 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {data.expenses.length ? (
-          <ExpenseTable expenses={data.expenses} />
+        {data.recent_expenses.length ? (
+          <ExpenseTable expenses={data.recent_expenses} />
         ) : (
           <EmptyState
             title="Nenhuma despesa neste mes"
-            message="Registre uma despesa pelo Telegram para ela aparecer aqui."
+            message="Registre uma despesa pelo Telegram ou pelo site."
           />
         )}
       </section>
     </PageFrame>
   );
 }
+
+
+function DailyHeatmap({
+  items,
+}: {
+  items: DashboardOverview["daily"];
+}) {
+  const totals = new Map(
+    items.map((item) => [
+      item.day,
+      Number(item.total),
+    ]),
+  );
+  const maximum = Math.max(
+    ...items.map((item) => Number(item.total)),
+    1,
+  );
+
+  return (
+    <div className="daily-heatmap">
+      {Array.from(
+        { length: 31 },
+        (_, index) => index + 1,
+      ).map((day) => {
+        const total = totals.get(day) ?? 0;
+        const intensity = Math.min(total / maximum, 1);
+
+        return (
+          <div
+            className="heatmap-day"
+            key={day}
+            style={{ opacity: 0.3 + intensity * 0.7 }}
+            title={`Dia ${day}: ${formatCurrency(total)}`}
+          >
+            <span>{day}</span>
+            <small>
+              {total > 0 ? formatCurrency(total) : "-"}
+            </small>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 interface PageFrameProps {
   title: string;
@@ -139,7 +273,13 @@ interface PageFrameProps {
   children: ReactNode;
 }
 
-function PageFrame({ title, subtitle, status, children }: PageFrameProps) {
+
+function PageFrame({
+  title,
+  subtitle,
+  status,
+  children,
+}: PageFrameProps) {
   return (
     <div>
       <header className="page-header">
@@ -148,7 +288,9 @@ function PageFrame({ title, subtitle, status, children }: PageFrameProps) {
           <h1>{title}</h1>
           <p>{subtitle}</p>
         </div>
-        {status ? <span className="status-badge">{status}</span> : null}
+        {status ? (
+          <span className="status-badge">{status}</span>
+        ) : null}
       </header>
       {children}
     </div>

@@ -78,3 +78,6 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 *.tsbuildinfo
+logs/
+backups/
+data/reports/

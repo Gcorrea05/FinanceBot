@@ -3,15 +3,19 @@ from contextlib import contextmanager
 
 from sqlalchemy.orm import Session
 
+from app.agents import FinanceAgent
 from app.database.session import get_session
 from app.domain.budget_plan import BudgetPlanValidator
 from app.domain.expense_validator import ExpenseValidator
 from app.domain.installment_plan import InstallmentPlanBuilder
 from app.domain.shared_expense import SharedExpenseSplitter
+from app.events import EventBus, EventDispatcher, EventPublisher
+from app.events.handlers import LoggingEventHandler, ProjectionRefreshHandler
 from app.repositories.automation_repository import AutomationRepository
 from app.repositories.budget_expense_repository import BudgetExpenseRepository
 from app.repositories.budget_repository import BudgetRepository
 from app.repositories.category_repository import CategoryRepository
+from app.repositories.event_repository import EventRepository
 from app.repositories.expense_repository import ExpenseRepository
 from app.repositories.import_repository import ImportRepository
 from app.repositories.payment_method_repository import PaymentMethodRepository
@@ -20,6 +24,15 @@ from app.repositories.receivable_repository import ReceivableRepository
 from app.repositories.report_repository import ReportRepository
 from app.services.automation_service import AutomationService
 from app.services.budget_service import BudgetService
+from app.services.dashboard_service import DashboardService
+from app.services.event_aware import (
+    EventAwareBudgetService,
+    EventAwareExpenseEditorService,
+    EventAwareExpenseManagementService,
+    EventAwareExpenseService,
+    EventAwareImportService,
+    EventAwareReceivableService,
+)
 from app.services.expense_editor_service import ExpenseEditorService
 from app.services.expense_management_service import ExpenseManagementService
 from app.services.expense_query_service import ExpenseQueryService
@@ -45,43 +58,102 @@ class Container:
         self.report_repository = ReportRepository(session)
         self.import_repository = ImportRepository(session)
         self.automation_repository = AutomationRepository(session)
+        self.event_repository = EventRepository(session)
 
         self.lookup_service = LookupService(
             category_repository=self.category_repository,
             payment_method_repository=self.payment_repository,
         )
-        self.expense_validator = ExpenseValidator()
-        self.installment_builder = InstallmentPlanBuilder()
-        self.shared_splitter = SharedExpenseSplitter()
+        validator = ExpenseValidator()
+        installment_builder = InstallmentPlanBuilder()
+        shared_splitter = SharedExpenseSplitter()
 
-        self.expense_service = ExpenseService(
+        base_expense_service = ExpenseService(
             expense_repository=self.expense_repository,
             lookup_service=self.lookup_service,
-            validator=self.expense_validator,
+            validator=validator,
             person_repository=self.person_repository,
-            installment_builder=self.installment_builder,
-            shared_splitter=self.shared_splitter,
+            installment_builder=installment_builder,
+            shared_splitter=shared_splitter,
         )
-        self.expense_editor_service = ExpenseEditorService(
+        base_editor_service = ExpenseEditorService(
             expense_repository=self.expense_repository,
             lookup_service=self.lookup_service,
-            validator=self.expense_validator,
+            validator=validator,
             person_repository=self.person_repository,
-            installment_builder=self.installment_builder,
-            shared_splitter=self.shared_splitter,
+            installment_builder=installment_builder,
+            shared_splitter=shared_splitter,
         )
-        self.expense_query_service = ExpenseQueryService(expense_repository=self.expense_repository)
-        self.expense_management_service = ExpenseManagementService(expense_repository=self.expense_repository)
-        self.receivable_service = ReceivableService(
+        base_management_service = ExpenseManagementService(
+            expense_repository=self.expense_repository
+        )
+        base_receivable_service = ReceivableService(
             receivable_repository=self.receivable_repository,
             person_repository=self.person_repository,
         )
-        self.budget_service = BudgetService(
+        base_budget_service = BudgetService(
             budget_repository=self.budget_repository,
             expense_repository=self.budget_expense_repository,
             validator=BudgetPlanValidator(),
         )
-        self.report_service = ReportService(repository=self.report_repository)
+        self.report_service = ReportService(
+            repository=self.report_repository
+        )
+        self.intelligence_service = IntelligenceService(
+            repository=self.report_repository,
+            report_service=self.report_service,
+            budget_service=base_budget_service,
+        )
+
+        self.event_bus = EventBus()
+        self.event_bus.subscribe("*", LoggingEventHandler())
+        self.event_bus.subscribe_many(
+            (
+                "expense.created",
+                "expense.updated",
+                "expense.deleted",
+                "receivable.settled",
+                "receivable.reopened",
+                "budget.updated",
+                "import.completed",
+            ),
+            ProjectionRefreshHandler(
+                budget_service=base_budget_service,
+                report_service=self.report_service,
+            ),
+        )
+        self.event_publisher = EventPublisher(
+            repository=self.event_repository,
+            bus=self.event_bus,
+        )
+        self.event_dispatcher = EventDispatcher(
+            repository=self.event_repository,
+            bus=self.event_bus,
+        )
+
+        self.expense_service = EventAwareExpenseService(
+            base_expense_service,
+            self.event_publisher,
+        )
+        self.expense_editor_service = EventAwareExpenseEditorService(
+            base_editor_service,
+            self.event_publisher,
+        )
+        self.expense_management_service = EventAwareExpenseManagementService(
+            base_management_service,
+            self.event_publisher,
+        )
+        self.expense_query_service = ExpenseQueryService(
+            expense_repository=self.expense_repository
+        )
+        self.receivable_service = EventAwareReceivableService(
+            base_receivable_service,
+            self.event_publisher,
+        )
+        self.budget_service = EventAwareBudgetService(
+            base_budget_service,
+            self.event_publisher,
+        )
         self.monthly_export_service = MonthlyExportService(
             report_repository=self.report_repository,
             receivable_repository=self.receivable_repository,
@@ -90,15 +162,28 @@ class Container:
             repository=self.automation_repository,
             budget_service=self.budget_service,
         )
-        self.intelligence_service = IntelligenceService(
-            repository=self.report_repository,
-            report_service=self.report_service,
-            budget_service=self.budget_service,
-        )
-        self.import_service = ImportService(
+
+        base_import_service = ImportService(
             repository=self.import_repository,
             expense_service=self.expense_service,
             lookup_service=self.lookup_service,
+        )
+        self.import_service = EventAwareImportService(
+            base_import_service,
+            self.event_publisher,
+        )
+
+        self.dashboard_service = DashboardService(
+            report_service=self.report_service,
+            report_repository=self.report_repository,
+            budget_service=self.budget_service,
+            receivable_service=self.receivable_service,
+            expense_management_service=self.expense_management_service,
+            intelligence_service=self.intelligence_service,
+        )
+        self.finance_agent = FinanceAgent(
+            dashboard_service=self.dashboard_service,
+            receivable_service=self.receivable_service,
         )
 
 
