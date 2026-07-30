@@ -20,9 +20,6 @@ from app.api.schemas.automation import (
     AutomationSettingsResponse,
 )
 from app.container import Container
-from app.notifications import (
-    TelegramNotifier,
-)
 from app.services.automation_service import (
     AutomationEvent,
     AutomationSettingsView,
@@ -198,12 +195,12 @@ async def run_now(
     )
 
     try:
+        from app.notifications.telegram_notifier import TelegramNotifier
+
         result = await (
             container.automation_service
             .run_due(
-                sender=TelegramNotifier(
-                    token
-                ),
+                sender=TelegramNotifier(token),
                 force=True,
             )
         )

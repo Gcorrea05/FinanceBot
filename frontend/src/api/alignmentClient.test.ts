@@ -9,16 +9,34 @@ describe("alignment API", () => {
   });
 
   it("downloads the selected monthly Excel", async () => {
+    const excelBlob = {
+      size: 4,
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    } as Blob;
+
+    const blobMock = vi.fn().mockResolvedValue(excelBlob);
+
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(new Blob(["xlsx"]), { status: 200 }),
+      {
+        ok: true,
+        status: 200,
+        blob: blobMock,
+      } as unknown as Response,
     );
 
     const result = await financeApi.downloadMonthlyExcel(2026, 7);
 
-    expect(result).toBeInstanceOf(Blob);
+    expect(result).toBe(excelBlob);
+    expect(blobMock).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/exports/monthly.xlsx?year=2026&month=7"),
-      expect.any(Object),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      }),
     );
   });
 

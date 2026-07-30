@@ -56,6 +56,9 @@ export function BudgetPage() {
   const [spendingLimit, setSpendingLimit] =
     useState("");
 
+  const [repeatMonths, setRepeatMonths] =
+    useState(1);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -126,6 +129,7 @@ export function BudgetPage() {
       monthly_income: monthlyIncome,
       reserve_target: reserveTarget,
       spending_limit: spendingLimit,
+      repeat_months: repeatMonths,
     };
 
     setSaving(true);
@@ -141,7 +145,9 @@ export function BudgetPage() {
 
       setOverview(result);
       setSuccess(
-        "Planejamento mensal salvo com sucesso."
+        repeatMonths > 1
+          ? `Planejamento salvo por ${repeatMonths} meses.`
+          : "Planejamento mensal salvo com sucesso."
       );
     } catch (saveError) {
       setError(
@@ -365,6 +371,20 @@ export function BudgetPage() {
                     }
                     placeholder="3500,00"
                   />
+                </label>
+
+                <label>
+                  Aplicar a partir deste mes
+                  <select
+                    value={repeatMonths}
+                    onChange={(event) => setRepeatMonths(Number(event.target.value))}
+                  >
+                    <option value={1}>Somente este mes</option>
+                    <option value={3}>Este mes e os proximos 2</option>
+                    <option value={6}>Este mes e os proximos 5</option>
+                    <option value={12}>Este mes e os proximos 11</option>
+                    <option value={24}>Este mes e os proximos 23</option>
+                  </select>
                 </label>
 
                 <button

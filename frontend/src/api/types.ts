@@ -69,6 +69,7 @@ export interface ExpenseMutationPayload {
   first_installment_due_date: string | null;
   is_shared: boolean;
   shared_people: SharedPersonInput[];
+  owner_amount?: string | null;
   notes: string | null;
 }
 
@@ -148,6 +149,7 @@ export interface BudgetPlanPayload {
   monthly_income: string;
   reserve_target: string;
   spending_limit: string;
+  repeat_months?: number;
 }
 
 export interface ReportQuery {
@@ -417,8 +419,43 @@ export interface DashboardOverview {
   recent_expenses: Expense[];
 }
 
-export interface FinanceAgentResponse {
-  intent: string;
-  answer: string;
-  data: Record<string, unknown>;
+
+
+
+export interface FutureMonth {
+  year: number;
+  month: number;
+  recorded_total: string;
+  installment_total: string;
+  recurring_total: string;
+  committed_total: string;
+  monthly_income: string | null;
+  reserve_target: string | null;
+  spending_limit: string | null;
+  available_to_spend: string | null;
+  status: string;
+}
+
+export interface FutureOverview {
+  items: FutureMonth[];
+}
+
+export interface RecurringExpense {
+  id: number;
+  description: string;
+  amount: string;
+  category: string;
+  payment_method: string;
+  due_day: number;
+  start_date: string;
+  end_date: string | null;
+  active: boolean;
+  auto_post: boolean;
+}
+
+export interface RecurringExpensePayload {
+  amount: string;
+  due_day: number;
+  active: boolean;
+  auto_post: boolean;
 }

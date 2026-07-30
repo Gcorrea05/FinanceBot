@@ -3,7 +3,6 @@ from contextlib import contextmanager
 
 from sqlalchemy.orm import Session
 
-from app.agents import FinanceAgent
 from app.database.session import get_session
 from app.domain.budget_plan import BudgetPlanValidator
 from app.domain.expense_validator import ExpenseValidator
@@ -18,6 +17,8 @@ from app.repositories.category_repository import CategoryRepository
 from app.repositories.event_repository import EventRepository
 from app.repositories.expense_repository import ExpenseRepository
 from app.repositories.import_repository import ImportRepository
+from app.repositories.financial_profile_repository import FinancialProfileRepository
+from app.repositories.recurring_expense_repository import RecurringExpenseRepository
 from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.repositories.person_repository import PersonRepository
 from app.repositories.receivable_repository import ReceivableRepository
@@ -38,6 +39,8 @@ from app.services.expense_management_service import ExpenseManagementService
 from app.services.expense_query_service import ExpenseQueryService
 from app.services.expense_service import ExpenseService
 from app.services.import_service import ImportService
+from app.services.future_planning_service import FuturePlanningService
+from app.services.recurring_expense_service import RecurringExpenseService
 from app.services.intelligence_service import IntelligenceService
 from app.services.lookup_service import LookupService
 from app.services.monthly_export_service import MonthlyExportService
@@ -57,6 +60,8 @@ class Container:
         self.budget_expense_repository = BudgetExpenseRepository(session)
         self.report_repository = ReportRepository(session)
         self.import_repository = ImportRepository(session)
+        self.financial_profile_repository = FinancialProfileRepository(session)
+        self.recurring_expense_repository = RecurringExpenseRepository(session)
         self.automation_repository = AutomationRepository(session)
         self.event_repository = EventRepository(session)
 
@@ -162,6 +167,14 @@ class Container:
             repository=self.automation_repository,
             budget_service=self.budget_service,
         )
+        self.recurring_expense_service = RecurringExpenseService(
+            repository=self.recurring_expense_repository,
+            profile_repository=self.financial_profile_repository,
+        )
+        self.future_planning_service = FuturePlanningService(
+            budget_service=base_budget_service,
+            recurring_repository=self.recurring_expense_repository,
+        )
 
         base_import_service = ImportService(
             repository=self.import_repository,
@@ -181,10 +194,7 @@ class Container:
             expense_management_service=self.expense_management_service,
             intelligence_service=self.intelligence_service,
         )
-        self.finance_agent = FinanceAgent(
-            dashboard_service=self.dashboard_service,
-            receivable_service=self.receivable_service,
-        )
+
 
 
 @contextmanager

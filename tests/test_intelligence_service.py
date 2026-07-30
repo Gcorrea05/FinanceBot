@@ -21,6 +21,12 @@ class RepositoryStub:
 
 
 class ReportServiceStub:
+    @staticmethod
+    def contribution_for_month(*, expense, year, month):
+        if expense.purchase_date.year == year and expense.purchase_date.month == month:
+            return Decimal(str(expense.purchase_value))
+        return Decimal("0.00")
+
     def get_overview(self, *, start_year, start_month, end_year, end_month, **kwargs):
         del kwargs
         if (start_year, start_month) == (end_year, end_month):
@@ -50,84 +56,6 @@ class ReportServiceStub:
         )
 
 
-    def contribution_for_month(
-        self,
-        *,
-        expense,
-        year,
-        month,
-    ):
-        purchase_total = Decimal(
-            str(expense.purchase_value)
-        )
-
-        shared_total = sum(
-            (
-                Decimal(
-                    str(relation.shared_value)
-                )
-                for relation in getattr(
-                    expense,
-                    "people",
-                    [],
-                )
-            ),
-            Decimal("0.00"),
-        )
-
-        owner_total = max(
-            purchase_total - shared_total,
-            Decimal("0.00"),
-        )
-
-        if not getattr(
-            expense,
-            "is_installment",
-            False,
-        ):
-            expense_period = (
-                expense.purchase_date.year,
-                expense.purchase_date.month,
-            )
-
-            if expense_period == (year, month):
-                return owner_total
-
-            return Decimal("0.00")
-
-        if purchase_total <= 0:
-            return Decimal("0.00")
-
-        owner_ratio = (
-            owner_total / purchase_total
-        )
-
-        contribution = sum(
-            (
-                Decimal(
-                    str(
-                        installment.installment_value
-                    )
-                )
-                * owner_ratio
-                for installment in getattr(
-                    expense,
-                    "installments",
-                    [],
-                )
-                if (
-                    installment.due_date.year,
-                    installment.due_date.month,
-                ) == (year, month)
-            ),
-            Decimal("0.00"),
-        )
-
-        return contribution.quantize(
-            Decimal("0.01")
-        )
-
-
 class BudgetServiceStub:
     def get_overview(self, **kwargs):
         del kwargs
@@ -145,9 +73,9 @@ def expense(expense_id, value, day, place='Mercado Central'):
         purchase_place=place,
         purchase_value=Decimal(value),
         category=SimpleNamespace(name='Mercado'),
+        people=[],
         is_installment=False,
         installments=[],
-        people=[],
     )
 
 

@@ -1,3 +1,4 @@
+
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -54,6 +55,12 @@ class ExpenseCreateRequest(BaseModel):
     shared_people: list[SharedPersonRequest] = Field(
         default_factory=list,
     )
+    owner_amount: Decimal | None = Field(
+        default=None,
+        gt=0,
+        max_digits=12,
+        decimal_places=2,
+    )
     notes: str | None = Field(
         default=None,
         max_length=500,
@@ -62,9 +69,9 @@ class ExpenseCreateRequest(BaseModel):
     @model_validator(mode="after")
     def validate_business_shape(self):
         if self.is_installment:
-            if self.installments < 2:
+            if self.installments < 1:
                 raise ValueError(
-                    "An installment expense must have at least 2 installments."
+                    "An installment expense must have at least 1 installment."
                 )
 
             if self.first_installment_due_date is None:
@@ -87,9 +94,9 @@ class ExpenseCreateRequest(BaseModel):
                 raise ValueError(
                     "A shared expense must have at least one participant."
                 )
-        elif self.shared_people:
+        elif self.shared_people or self.owner_amount is not None:
             raise ValueError(
-                "shared_people must be empty when is_shared is false."
+                "shared_people and owner_amount must be empty when is_shared is false."
             )
 
         return self
@@ -105,6 +112,7 @@ class ExpenseCreateRequest(BaseModel):
             installments=self.installments,
             first_installment_due_date=self.first_installment_due_date,
             is_shared=self.is_shared,
+            owner_amount=self.owner_amount,
             shared_people=tuple(
                 SharedPersonCreate(
                     name=person.name,

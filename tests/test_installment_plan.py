@@ -61,17 +61,12 @@ def test_build_installments_clamps_month_end():
     ]
 
 
-def test_reject_single_installment_plan():
-    with pytest.raises(
-        ExpenseValidationError,
-        match="installments",
-    ):
-        InstallmentPlanBuilder().build(
-            total=Decimal("100.00"),
-            installments=1,
-            first_due_date=date(
-                2026,
-                1,
-                1,
-            ),
-        )
+def test_single_installment_plan_represents_credit_card_invoice():
+    plan = InstallmentPlanBuilder().build(
+        total=Decimal("100.00"),
+        installments=1,
+        first_due_date=date(2026, 1, 26),
+    )
+    assert len(plan) == 1
+    assert plan[0].amount == Decimal("100.00")
+    assert plan[0].due_date == date(2026, 1, 26)

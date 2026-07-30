@@ -1,3 +1,4 @@
+
 import { useMemo, useState, type FormEvent } from "react";
 
 import type {
@@ -202,8 +203,8 @@ export function ExpenseForm({
         throw new Error("Categoria e forma de pagamento sao obrigatorias.");
       }
 
-      if (isInstallment && (installments < 2 || !firstDueDate)) {
-        throw new Error("Informe ao menos 2 parcelas e o primeiro vencimento.");
+      if (isInstallment && (installments < 1 || !firstDueDate)) {
+        throw new Error("Informe ao menos 1 parcela e o primeiro vencimento.");
       }
 
       const sharedPeople = validateParticipants();
@@ -332,7 +333,7 @@ export function ExpenseForm({
                   Quantidade de parcelas
                   <input
                     max={120}
-                    min={2}
+                    min={1}
                     type="number"
                     value={installments}
                     onChange={(event) => setInstallments(Number(event.target.value))}

@@ -19,4 +19,5 @@ class ExpenseCreate:
     first_installment_due_date: date | None = None
     is_shared: bool = False
     shared_people: tuple[SharedPersonCreate, ...] = ()
+    owner_amount: MoneyInput | None = None
     notes: str | None = None

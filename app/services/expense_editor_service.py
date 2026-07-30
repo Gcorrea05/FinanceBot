@@ -1,3 +1,4 @@
+
 from app.database.models import (
     Expense,
     ExpenseInstallment,
@@ -56,7 +57,7 @@ class ExpenseEditorService:
 
         expense.purchase_date = validated.purchase_date
         expense.purchase_place = validated.purchase_place
-        expense.purchase_value = float(validated.purchase_value)
+        expense.purchase_value = validated.purchase_value
         expense.category = category
         expense.payment_method = payment_method
         expense.is_installment = validated.is_installment
@@ -80,6 +81,7 @@ class ExpenseEditorService:
                 expense=expense,
                 total=validated.purchase_value,
                 people=validated.shared_people,
+                owner_amount=validated.owner_amount,
             )
 
         try:
@@ -143,10 +145,12 @@ class ExpenseEditorService:
         expense: Expense,
         total,
         people,
+        owner_amount=None,
     ) -> None:
         split = self.shared_splitter.split(
             total=total,
             people=people,
+            owner_amount=owner_amount,
         )
 
         expense.people = [

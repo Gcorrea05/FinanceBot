@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
-import shutil
+import sqlite3
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.container import container_context
@@ -43,6 +43,21 @@ async def _run_events() -> None:
             "Eventos: %s processados, %s falhas.",
             processed,
             failed,
+        )
+
+
+async def _run_recurring_expenses() -> None:
+    with container_context() as container:
+        profile = container.financial_profile_repository.get_or_create_default()
+        created = container.recurring_expense_service.materialize(
+            months=profile.projection_months,
+        )
+        posted = container.recurring_expense_service.post_due()
+    if created or posted:
+        logger.info(
+            "Recorrencias: %s ocorrencias criadas, %s lancadas.",
+            created,
+            posted,
         )
 
 
@@ -107,15 +122,28 @@ async def _backup_sqlite() -> None:
     if now.hour < settings.scheduler.sqlite_backup_hour:
         return
 
-    source = Path(database.url.removeprefix("sqlite:///"))
-    if not source.exists():
+    source_path = Path(database.url.removeprefix("sqlite:///"))
+    if not source_path.exists():
         return
     directory = database.sqlite_backup_directory
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / f"finance-{now:%Y%m%d}.db"
     if target.exists():
         return
-    shutil.copy2(source, target)
+    source = sqlite3.connect(
+        f"file:{source_path}?mode=ro",
+        uri=True,
+        timeout=database.sqlite_busy_timeout_ms / 1000,
+    )
+    backup = sqlite3.connect(target)
+    try:
+        source.backup(backup)
+        result = backup.execute("PRAGMA integrity_check").fetchone()
+        if not result or result[0] != "ok":
+            raise RuntimeError("O backup SQLite falhou na verificacao de integridade.")
+    finally:
+        backup.close()
+        source.close()
     logger.info("Backup SQLite criado: %s", target)
 
 
@@ -128,6 +156,12 @@ def build_scheduler_jobs(*, sender) -> list[ScheduledJob]:
             name="domain-events",
             interval_seconds=settings.scheduler.event_interval_seconds,
             callback=_run_events,
+            run_on_start=True,
+        ),
+        ScheduledJob(
+            name="recurring-expenses",
+            interval_seconds=3600,
+            callback=_run_recurring_expenses,
             run_on_start=True,
         ),
         ScheduledJob(

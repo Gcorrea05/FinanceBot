@@ -11,6 +11,7 @@ from app.api.schemas.budget import (
 )
 from app.container import Container
 from app.services.budget_service import BudgetOverview
+from app.domain.billing_cycle import add_months
 
 
 router = APIRouter(
@@ -89,23 +90,19 @@ def save_budget(
         get_container
     ),
 ) -> BudgetOverviewResponse:
-    overview = (
-        container.budget_service
-        .save_plan(
-            year=year,
-            month=month,
-            monthly_income=(
-                payload.monthly_income
-            ),
-            reserve_target=(
-                payload.reserve_target
-            ),
-            spending_limit=(
-                payload.spending_limit
-            ),
+    overview = None
+    for offset in range(payload.repeat_months):
+        target_year, target_month = add_months(year, month, offset)
+        saved = container.budget_service.save_plan(
+            year=target_year,
+            month=target_month,
+            monthly_income=payload.monthly_income,
+            reserve_target=payload.reserve_target,
+            spending_limit=payload.spending_limit,
         )
-    )
+        if offset == 0:
+            overview = saved
 
-    return serialize_budget(
-        overview
-    )
+    if overview is None:
+        raise RuntimeError("Nao foi possivel salvar o planejamento.")
+    return serialize_budget(overview)

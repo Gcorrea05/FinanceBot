@@ -1,100 +1,87 @@
 # Arquitetura do FinanceBot
 
-## Camadas
+## Fronteiras
 
-O FinanceBot passa a adotar as seguintes fronteiras:
+- `app/bot`: adaptador Telegram, sem acesso direto ao banco;
+- `app/api`: contrato HTTP usado pelo site;
+- `app/domain`: regras puras de dinheiro, parcelamento, divisao e interpretacao;
+- `app/services`: casos de uso e transacoes financeiras;
+- `app/repositories`: persistencia SQLAlchemy;
+- `app/database/models`: schema relacional;
+- `app/events`: journal persistente de eventos;
+- `app/automation`: worker e automacoes;
+- `app/core`: configuracao, logs e infraestrutura compartilhada.
 
-- `app/api`: adaptador HTTP;
-- `app/bot`: adaptador Telegram;
-- `app/agents`: intermediador seguro para IA;
-- `app/services`: casos de uso e coordenacao financeira;
-- `app/domain`: regras puras, sem frameworks;
-- `app/repositories`: persistencia;
-- `app/database/models`: modelos SQLAlchemy;
-- `app/events`: eventos financeiros persistentes;
-- `app/scheduler`: tarefas automaticas;
-- `app/core`: configuracao e logs.
+Handlers e rotas chamam services. Regras financeiras nao ficam no Telegram, no React, em triggers ou no Compose.
 
-Os models permanecem em `app/database/models`. Move-los apenas para
-`app/models` causaria alteracoes sem ganho arquitetural.
+## Fluxo de registro pelo Telegram
 
-Rotas e handlers nao podem acessar repositories ou database. Agents
-tambem nao acessam SQL ou models. Essas regras sao verificadas em
-`tests/test_architecture_boundaries.py`.
+```text
+mensagem livre
+-> NaturalExpenseParser
+-> rascunho validado
+-> pergunta do meio de pagamento
+-> confirmacao
+-> ExpenseService ou RecurringExpenseService
+-> SQLite
+-> evento persistente
+```
 
-## Eventos
+O parser e deterministico e nao depende de LLM. Mensagens ambiguas nao sao gravadas automaticamente.
 
-Operacoes financeiras publicam eventos como:
+## Fluxo do site
+
+O site consulta a API para dashboard, lancamentos, planejamento, recorrencias, projecoes e relatorios. Ele permite manutencao dos registros e configuracoes, mas o cadastro cotidiano fica concentrado no Telegram.
+
+## Planejamento e futuro
+
+O dominio separa:
+
+- despesa efetiva;
+- parcela de uma compra;
+- programacao recorrente;
+- ocorrencia futura de uma recorrencia;
+- planejamento mensal.
+
+Uma ocorrencia futura nao vira despesa realizada antes do processamento previsto. Chaves unicas tornam o scheduler idempotente.
+
+## SQLite
+
+API, bot e scheduler compartilham o arquivo `/app/data/finance.db` por volume nomeado. Para reduzir contencao:
+
+- `PRAGMA foreign_keys=ON`;
+- `PRAGMA journal_mode=WAL`;
+- `PRAGMA busy_timeout`;
+- `PRAGMA synchronous=NORMAL`;
+- transacoes curtas;
+- uma migration executada antes dos processos de longa duracao.
+
+Dinheiro usa `Numeric(12, 2)` e `Decimal`; `FLOAT` nao e usado nos novos fluxos financeiros.
+
+## Compose
+
+O arquivo unico e `compose.yml`:
+
+```text
+migrate -> aplica migrations, carga idempotente e validacao
+api     -> FastAPI
+bot     -> Telegram
+scheduler -> recorrencias, eventos e alertas
+web     -> React/Nginx e unica porta exposta
+```
+
+O SQLite nao e um servico separado. Ele fica no volume persistente compartilhado pelos tres processos backend.
+
+## Eventos e rastreabilidade
+
+Operacoes financeiras publicam eventos persistentes, como:
 
 - `expense.created`;
 - `expense.updated`;
 - `expense.deleted`;
 - `budget.updated`;
 - `receivable.settled`;
-- `receivable.reopened`;
-- `import.completed`.
+- `recurring_expense.created`;
+- `recurring_expense.occurrence_posted`.
 
-Os eventos sao registrados em `domain_events`. O processamento ocorre
-imediatamente e o scheduler tenta novamente os eventos que falharem.
-
-## Scheduler
-
-O worker geral executa:
-
-- alertas e resumos do Telegram;
-- retry de eventos;
-- relatorio mensal em Excel;
-- limpeza de logs;
-- backup do SQLite em desenvolvimento.
-
-No PostgreSQL, o backup sera realizado pelos scripts do Batch 16.
-
-## FinanceAgent
-
-O FinanceAgent nao executa SQL. Ele consulta apenas services e possui
-capacidades explicitas para:
-
-- gasto mensal;
-- previsao;
-- orcamento;
-- categoria principal;
-- valores a receber.
-
-Uma futura LLM deve chamar essas capacidades e nunca receber acesso
-direto ao banco.
-
-## Dashboard
-
-O dashboard mostra somente dados realmente modelados:
-
-- gastos;
-- limite restante;
-- valores a receber;
-- previsao;
-- categorias;
-- calendario de gastos;
-- comparacao mensal e anual.
-
-Renda e identificada como planejada. Saldo bancario, receita efetiva e
-patrimonio nao sao exibidos porque ainda nao existem contas, receitas
-ou ativos no dominio.
-
-## Banco
-
-A migration 0005 adiciona:
-
-- journal de eventos;
-- indices compostos;
-- foreign keys obrigatorias no SQLite;
-- views de recebiveis e parcelas.
-
-Triggers nao calculam saldos ou orcamentos. Regras financeiras em
-triggers duplicariam os services e poderiam divergir entre SQLite e
-PostgreSQL.
-
-## Logs e configuracoes
-
-Os processos geram `app.log`, `api.log`, `telegram.log` e
-`scheduler.log`, com rotacao. Todas as configuracoes sao carregadas por
-`app/core/settings.py`. `app/config.py` e `app/api/settings.py` ficam
-como adaptadores de compatibilidade.
+O journal permite auditoria e reprocessamento sem colocar regra financeira nos adaptadores.

@@ -8,7 +8,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     config --quiet
 
 if ($LASTEXITCODE -ne 0) {
@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0) {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     up -d --build
 
 if ($LASTEXITCODE -ne 0) {
@@ -55,7 +55,7 @@ for ($attempt = 1; $attempt -le 30; $attempt++) {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     ps
 
 if (-not $ready) {

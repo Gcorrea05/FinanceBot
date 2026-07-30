@@ -13,6 +13,11 @@ x-backend-common: &backend-common
     REPORT_DIRECTORY: ${PRODUCTION_REPORT_DIRECTORY}
     SQLITE_BACKUP_DIRECTORY: ${PRODUCTION_SQLITE_BACKUP_DIRECTORY}
     SQLITE_BACKUP_ENABLED: ${PRODUCTION_SQLITE_BACKUP_ENABLED}
+    SQLITE_FOREIGN_KEYS: "true"
+    SQLITE_WAL_ENABLED: "true"
+    SQLITE_BUSY_TIMEOUT_MS: ${PRODUCTION_SQLITE_BUSY_TIMEOUT_MS:-10000}
+    SQLITE_WAL_AUTOCHECKPOINT: ${PRODUCTION_SQLITE_WAL_AUTOCHECKPOINT:-1000}
+    SQLITE_SYNCHRONOUS: ${PRODUCTION_SQLITE_SYNCHRONOUS:-NORMAL}
     EXPOSE_API_DOCS: ${PRODUCTION_EXPOSE_API_DOCS}
     TRUSTED_HOSTS: ${PRODUCTION_TRUSTED_HOSTS}
     TZ: ${SCHEDULER_TIMEZONE:-America/Sao_Paulo}
@@ -20,66 +25,41 @@ x-backend-common: &backend-common
     - financebot_data:/app/data
     - financebot_backups:/app/backups
     - financebot_logs:/app/logs
+  init: true
   restart: unless-stopped
-  stop_grace_period: 20s
+  stop_grace_period: 25s
   networks:
     - financebot_internal
 
 services:
   migrate:
     <<: *backend-common
-    command:
-      - python
-      - -m
-      - scripts.bootstrap_migrations
+    command: ["python", "-m", "scripts.production_bootstrap"]
     restart: "no"
-
   api:
     <<: *backend-common
-    command:
-      - python
-      - -m
-      - uvicorn
-      - app.api.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-      - --proxy-headers
+    command: ["python", "-m", "uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
     depends_on:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=5)
-      interval: 20s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=5)"]
+      interval: 15s
       timeout: 8s
       retries: 12
       start_period: 20s
-
   bot:
     <<: *backend-common
-    command:
-      - python
-      - -m
-      - app.main
+    command: ["python", "-m", "app.main"]
     depends_on:
       migrate:
         condition: service_completed_successfully
-
   scheduler:
     <<: *backend-common
-    command:
-      - python
-      - -m
-      - app.automation.worker
+    command: ["python", "-m", "app.automation.worker"]
     depends_on:
       migrate:
         condition: service_completed_successfully
-
   web:
     build:
       context: ./frontend
@@ -91,16 +71,19 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     stop_grace_period: 10s
     networks:
       - financebot_internal
-
 volumes:
   financebot_data:
   financebot_backups:
   financebot_logs:
-
 networks:
   financebot_internal:
     driver: bridge

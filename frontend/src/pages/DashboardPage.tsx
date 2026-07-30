@@ -213,7 +213,7 @@ export function DashboardPage() {
         ) : (
           <EmptyState
             title="Nenhuma despesa neste mes"
-            message="Registre uma despesa pelo Telegram ou pelo site."
+            message="Registre uma despesa pelo Telegram."
           />
         )}
       </section>

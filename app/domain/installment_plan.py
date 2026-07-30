@@ -25,12 +25,12 @@ class InstallmentPlanBuilder:
         installments: int,
         first_due_date: date,
     ) -> tuple[InstallmentPlanItem, ...]:
-        if installments < 2:
+        if installments < 1:
             raise ExpenseValidationError(
                 "installments",
                 (
                     "O plano parcelado deve possuir "
-                    "pelo menos 2 parcelas."
+                    "pelo menos 1 parcela."
                 ),
             )
 

@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-
 class ConfigurationError(RuntimeError):
     """Erro causado por configuracao ausente ou invalida."""
 
@@ -19,6 +18,10 @@ class TelegramSettings(BaseModel):
 class DatabaseSettings(BaseModel):
     url: str
     sqlite_foreign_keys: bool
+    sqlite_wal_enabled: bool
+    sqlite_busy_timeout_ms: int
+    sqlite_wal_autocheckpoint: int
+    sqlite_synchronous: str
     sqlite_backup_enabled: bool
     sqlite_backup_directory: Path
 
@@ -81,21 +84,15 @@ class SecuritySettings(BaseModel):
 
 class Settings(BaseSettings):
     @classmethod
-    def from_environment(
-        cls,
-    ) -> "Settings":
+    def from_environment(cls) -> "Settings":
         return cls()
 
     @classmethod
-    def from_env(
-        cls,
-    ) -> "Settings":
+    def from_env(cls) -> "Settings":
         return cls()
 
     @classmethod
-    def load(
-        cls,
-    ) -> "Settings":
+    def load(cls) -> "Settings":
         return cls()
 
     model_config = SettingsConfigDict(
@@ -119,6 +116,24 @@ class Settings(BaseSettings):
     sqlite_foreign_keys: bool = Field(
         True, validation_alias="SQLITE_FOREIGN_KEYS"
     )
+    sqlite_wal_enabled: bool = Field(
+        True, validation_alias="SQLITE_WAL_ENABLED"
+    )
+    sqlite_busy_timeout_ms: int = Field(
+        10_000,
+        validation_alias="SQLITE_BUSY_TIMEOUT_MS",
+        ge=1_000,
+        le=120_000,
+    )
+    sqlite_wal_autocheckpoint: int = Field(
+        1_000,
+        validation_alias="SQLITE_WAL_AUTOCHECKPOINT",
+        ge=100,
+        le=100_000,
+    )
+    sqlite_synchronous: str = Field(
+        "NORMAL", validation_alias="SQLITE_SYNCHRONOUS"
+    )
     sqlite_backup_enabled: bool = Field(
         True, validation_alias="SQLITE_BACKUP_ENABLED"
     )
@@ -128,7 +143,7 @@ class Settings(BaseSettings):
     )
 
     api_title: str = Field("FinanceBot API", validation_alias="API_TITLE")
-    api_version: str = Field("0.2.0", validation_alias="API_VERSION")
+    api_version: str = Field("1.0.0", validation_alias="API_VERSION")
     api_host: str = Field("127.0.0.1", validation_alias="API_HOST")
     api_port: int = Field(8000, validation_alias="API_PORT", ge=1, le=65535)
     api_cors_origins: str = Field(
@@ -183,7 +198,7 @@ class Settings(BaseSettings):
 
     expose_api_docs: bool = Field(True, validation_alias="EXPOSE_API_DOCS")
     trusted_hosts: str = Field(
-        "localhost,127.0.0.1", validation_alias="TRUSTED_HOSTS"
+        "localhost,127.0.0.1,testserver", validation_alias="TRUSTED_HOSTS"
     )
 
     @property
@@ -199,6 +214,10 @@ class Settings(BaseSettings):
         return DatabaseSettings(
             url=self.database_url,
             sqlite_foreign_keys=self.sqlite_foreign_keys,
+            sqlite_wal_enabled=self.sqlite_wal_enabled,
+            sqlite_busy_timeout_ms=self.sqlite_busy_timeout_ms,
+            sqlite_wal_autocheckpoint=self.sqlite_wal_autocheckpoint,
+            sqlite_synchronous=self.sqlite_synchronous.upper(),
             sqlite_backup_enabled=self.sqlite_backup_enabled,
             sqlite_backup_directory=self.sqlite_backup_directory,
         )

@@ -25,6 +25,7 @@ class ValidatedExpense:
     first_installment_due_date: date | None
     is_shared: bool
     shared_people: tuple[SharedPersonCreate, ...]
+    owner_amount: Decimal | None
     notes: str | None
 
 
@@ -104,6 +105,10 @@ class ExpenseValidator:
             value=data.shared_people,
         )
 
+        owner_amount = self._validate_owner_amount(
+            is_shared=is_shared, value=data.owner_amount
+        )
+
         notes = self._optional_text(
             field="notes",
             value=data.notes,
@@ -123,8 +128,24 @@ class ExpenseValidator:
             ),
             is_shared=is_shared,
             shared_people=shared_people,
+            owner_amount=owner_amount,
             notes=notes,
         )
+
+
+    @staticmethod
+    def _validate_owner_amount(*, is_shared: bool, value) -> Decimal | None:
+        if value is None:
+            return None
+        if not is_shared:
+            raise ExpenseValidationError(
+                "owner_amount",
+                "Minha parte so pode ser informada em uma despesa compartilhada.",
+            )
+        try:
+            return MoneyParser.parse(value)
+        except ValueError as error:
+            raise ExpenseValidationError("owner_amount", str(error)) from error
 
     @staticmethod
     def _validate_date(

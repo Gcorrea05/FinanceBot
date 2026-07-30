@@ -92,10 +92,10 @@ def test_list_reference_names(lookup_service):
     ]
 
     assert lookup_service.list_payment_method_names() == [
-        "Cr\u00e9dito",
-        "D\u00e9bito",
-        "Dinheiro",
+        "Cartão de crédito",
+        "Débito",
         "Pix",
+        "Dinheiro",
     ]
 
 

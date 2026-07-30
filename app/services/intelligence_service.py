@@ -223,7 +223,7 @@ class IntelligenceService:
 
         for expense in expenses:
             category = expense.category.name
-            if expense.is_installment:
+            if getattr(expense, "is_installment", False):
                 purchase_total = self._money(
                     expense.purchase_value
                 )
@@ -295,7 +295,7 @@ class IntelligenceService:
                 continue
 
             effective_date = expense.purchase_date.date()
-            if expense.is_installment:
+            if getattr(expense, "is_installment", False):
                 due_dates = [
                     item.due_date
                     for item in expense.installments

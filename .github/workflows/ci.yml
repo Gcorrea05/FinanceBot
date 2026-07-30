@@ -24,15 +24,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Backend tests
+      - name: Backend validation
         env:
           DATABASE_URL: sqlite:///data/ci.db
           TELEGRAM_TOKEN: ci-placeholder-token
           TRUSTED_HOSTS: localhost,127.0.0.1,testserver
+          SQLITE_WAL_ENABLED: "true"
+          SQLITE_BUSY_TIMEOUT_MS: "10000"
         run: |
           python -m compileall -q app scripts tests migrations
+          python -m scripts.check_batch17
+          python -m scripts.audit_repository
           python -m pytest -q
-          python -m scripts.check_batch152
 
   frontend:
     runs-on: ubuntu-latest

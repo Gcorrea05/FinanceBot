@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from telegram import Update
@@ -11,932 +11,149 @@ from telegram.ext import (
     filters,
 )
 
-from app.bot.expense_input import (
-    ExpenseInputError,
-    format_brl,
-    parse_date_input,
-    parse_shared_person_entry,
-    parse_installment_count,
-    parse_purchase_datetime,
-    parse_shared_mode,
-    parse_yes_no,
-)
+from app.bot.expense_input import format_brl
 from app.bot.keyboards.expense import (
-    BUTTON_BACK,
     BUTTON_CANCEL,
     BUTTON_CONFIRM,
-    BUTTON_EXACT_SPLIT,
-    BUTTON_FINISH_PEOPLE,
-    BUTTON_REMOVE_LAST_PERSON,
-    BUTTON_RESTART,
-    BUTTON_SKIP,
-    build_choice_keyboard,
+    PAYMENT_CREDIT_CARD,
+    PAYMENT_METHODS,
     build_confirmation_keyboard,
-    build_date_keyboard,
-    build_notes_keyboard,
-    build_shared_mode_keyboard,
-    build_shared_people_keyboard,
-    build_yes_no_keyboard,
+    build_payment_keyboard,
 )
 from app.bot.keyboards.main_menu import (
     MENU_ADD_EXPENSE,
+    MENU_HELP,
+    MENU_RECEIVABLES,
+    MENU_RECENT_EXPENSES,
     build_main_menu,
 )
-from app.constants import DEFAULT_SHARED_PEOPLE
 from app.container import container_context
-from app.domain.exceptions import DomainError
-from app.domain.money import MoneyParser
-from app.domain.shared_expense import (
-    SharedExpenseSplitter,
+from app.domain.billing_cycle import first_installment_date
+from app.domain.natural_expense_parser import (
+    NaturalExpenseDraft,
+    NaturalExpenseParseError,
+    NaturalExpenseParser,
 )
+from app.domain.shared_expense import SharedExpenseSplitter
 from app.schemas.expense.create import ExpenseCreate
-from app.services.lookup_service import (
-    LookupNotFoundError,
-)
-from app.utils.text_normalizer import TextNormalizer
 
+NATURAL_TEXT, PAYMENT_METHOD, CONFIRM = range(3)
+DRAFT_KEY = "natural_expense_draft"
+PAYMENT_KEY = "natural_expense_payment"
 
-(
-    PURCHASE_DATE,
-    PURCHASE_PLACE,
-    PURCHASE_VALUE,
-    CATEGORY,
-    PAYMENT_METHOD,
-    INSTALLMENT_CHOICE,
-    INSTALLMENTS,
-    FIRST_DUE_DATE,
-    SHARED_CHOICE,
-    SHARED_MODE,
-    SHARED_PEOPLE,
-    NOTES,
-    CONFIRM,
-) = range(13)
+_MENU_PATTERN = "^(?:" + "|".join(
+    re.escape(value)
+    for value in (
+        MENU_ADD_EXPENSE,
+        MENU_RECENT_EXPENSES,
+        MENU_RECEIVABLES,
+        MENU_HELP,
+        *PAYMENT_METHODS,
+        BUTTON_CONFIRM,
+        BUTTON_CANCEL,
+    )
+) + ")$"
 
-
-DRAFT_KEY = "expense_draft"
-CURRENT_STATE_KEY = "expense_current_state"
-HISTORY_KEY = "expense_state_history"
-
-
-TEXT_FILTER = (
+DIRECT_TEXT_FILTER = (
     filters.TEXT
     & ~filters.COMMAND
-)
-
-BACK_FILTER = filters.Regex(
-    rf"^{re.escape(BUTTON_BACK)}$"
-)
-
-CANCEL_FILTER = filters.Regex(
-    rf"^{re.escape(BUTTON_CANCEL)}$"
+    & ~filters.Regex(_MENU_PATTERN)
 )
 
 
-def _message(update: Update):
-    return update.effective_message
+def _clear(context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data.pop(DRAFT_KEY, None)
+    context.user_data.pop(PAYMENT_KEY, None)
 
 
-def _draft(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> dict:
-    return context.user_data.setdefault(
-        DRAFT_KEY,
-        {},
-    )
-
-
-def _clear_flow(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    context.user_data.pop(
-        DRAFT_KEY,
-        None,
-    )
-    context.user_data.pop(
-        CURRENT_STATE_KEY,
-        None,
-    )
-    context.user_data.pop(
-        HISTORY_KEY,
-        None,
-    )
-
-
-def _move_to(
-    context: ContextTypes.DEFAULT_TYPE,
-    next_state: int,
-) -> int:
-    current_state = context.user_data.get(
-        CURRENT_STATE_KEY
-    )
-
-    if current_state is not None:
-        history = context.user_data.setdefault(
-            HISTORY_KEY,
-            [],
-        )
-        history.append(current_state)
-
-    context.user_data[
-        CURRENT_STATE_KEY
-    ] = next_state
-
-    return next_state
-
-
-def _shared_people(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> list:
-    draft = _draft(context)
-
-    people = draft.setdefault(
-        "shared_people",
-        [],
-    )
-
-    if isinstance(people, tuple):
-        people = list(people)
-        draft["shared_people"] = people
-
-    return people
-
-
-def _shared_people_summary(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> str:
-    draft = _draft(context)
-    people = _shared_people(context)
-
-    if not people:
-        return "Nenhuma pessoa adicionada."
-
-    lines = [
-        "Pessoas adicionadas:",
-    ]
-
-    for index, person in enumerate(
-        people,
-        start=1,
-    ):
-        if person.amount is None:
-            detail = person.name
-        else:
-            detail = (
-                f"{person.name} - "
-                + format_brl(
-                    Decimal(str(person.amount))
-                )
-            )
-
-        lines.append(
-            f"{index}. {detail}"
-        )
-
-    split = SharedExpenseSplitter().split(
-        total=draft["purchase_value"],
-        people=tuple(people),
-    )
-
-    if draft.get("shared_mode") == "equal":
-        lines.append("")
-        lines.append(
-            (
-                "Sua parte atual: "
-                + format_brl(
-                    split.owner_amount
-                )
-            )
-        )
-
-        if split.allocations:
-            lines.append(
-                (
-                    "Parte de cada pessoa: "
-                    + format_brl(
-                        split.allocations[0].amount
-                    )
-                )
-            )
-    else:
-        allocated_total = sum(
-            (
-                allocation.amount
-                for allocation
-                in split.allocations
-            ),
-            start=Decimal("0.00"),
-        )
-
-        lines.append("")
-        lines.append(
-            (
-                "Total a receber: "
-                + format_brl(
-                    allocated_total
-                )
-            )
-        )
-        lines.append(
-            (
-                "Sua parte restante: "
-                + format_brl(
-                    split.owner_amount
-                )
-            )
-        )
-
-    return "\n".join(lines)
-
-
-def _shared_people_prompt(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> str:
-    draft = _draft(context)
-    shared_mode = draft.get("shared_mode")
-
-    if shared_mode == "equal":
-        instruction = (
-            "Envie uma pessoa por resposta. "
-            "Exemplo: Tomas"
-        )
-    else:
-        instruction = (
-            "Envie uma pessoa por resposta no formato "
-            "Nome=valor. Exemplo: Tomas=70,00"
-        )
-
-    defaults = ", ".join(
-        DEFAULT_SHARED_PEOPLE
-    )
-
-    return (
-        f"{instruction}\n\n"
-        f" {defaults}\n"
-        "Quando terminar, escolha Finalizar pessoas.\n\n"
-        + _shared_people_summary(context)
-    )
+def _draft(context: ContextTypes.DEFAULT_TYPE) -> NaturalExpenseDraft:
+    draft = context.user_data.get(DRAFT_KEY)
+    if not isinstance(draft, NaturalExpenseDraft):
+        raise RuntimeError("Rascunho de despesa ausente.")
+    return draft
 
 
 async def start_expense(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    _clear_flow(context)
-
-    context.user_data[DRAFT_KEY] = {}
-    context.user_data[HISTORY_KEY] = []
-    context.user_data[
-        CURRENT_STATE_KEY
-    ] = PURCHASE_DATE
-
-    message = _message(update)
-
+    _clear(context)
+    message = update.effective_message
     if message is None:
         return ConversationHandler.END
-
     await message.reply_text(
-        (
-            "Vamos cadastrar uma despesa.\n\n"
-            "Qual foi a data da compra?\n"
-            "Envie DD/MM/AAAA ou escolha Hoje."
-        ),
-        reply_markup=build_date_keyboard(),
+        "Envie o gasto em uma linha.\n\n"
+        "Exemplos:\n"
+        "mercado 230,50\n"
+        "tablet 1700 parcelado em 10x\n"
+        "presente giron, 300, tomas, yuzo\n"
+        "allianz 390 mensal dia 28",
+        reply_markup=build_main_menu(),
     )
+    return NATURAL_TEXT
 
-    return PURCHASE_DATE
 
-
-async def receive_purchase_date(
+async def receive_direct_text(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    message = _message(update)
+    _clear(context)
+    return await receive_natural_text(update, context)
 
+
+async def receive_natural_text(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> int:
+    message = update.effective_message
     if message is None:
-        return PURCHASE_DATE
-
+        return NATURAL_TEXT
     try:
-        purchase_date = (
-            parse_purchase_datetime(
-                message.text or ""
-            )
-        )
-
-    except ExpenseInputError as error:
+        draft = NaturalExpenseParser().parse(message.text or "")
+    except NaturalExpenseParseError as error:
         await message.reply_text(
-            str(error),
-            reply_markup=build_date_keyboard(),
+            f"Não consegui interpretar: {error}\n\n"
+            "Tente algo como: mercado 230,50",
+            reply_markup=build_main_menu(),
         )
-        return PURCHASE_DATE
+        return NATURAL_TEXT
 
-    if purchase_date.date() > date.today():
-        await message.reply_text(
-            "A data da compra nao pode estar no futuro.",
-            reply_markup=build_date_keyboard(),
-        )
-        return PURCHASE_DATE
-
-    _draft(context)[
-        "purchase_date"
-    ] = purchase_date
-
+    context.user_data[DRAFT_KEY] = draft
     await message.reply_text(
-        "Em qual estabelecimento foi a compra?",
-        reply_markup=build_choice_keyboard(
-            [],
-        ),
+        "Como você pagou?",
+        reply_markup=build_payment_keyboard(),
     )
-
-    return _move_to(
-        context,
-        PURCHASE_PLACE,
-    )
-
-
-async def receive_purchase_place(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return PURCHASE_PLACE
-
-    purchase_place = " ".join(
-        (message.text or "").split()
-    )
-
-    if len(purchase_place) < 2:
-        await message.reply_text(
-            "Informe um estabelecimento com pelo menos 2 caracteres."
-        )
-        return PURCHASE_PLACE
-
-    if len(purchase_place) > 255:
-        await message.reply_text(
-            "O estabelecimento deve possuir no maximo 255 caracteres."
-        )
-        return PURCHASE_PLACE
-
-    _draft(context)[
-        "purchase_place"
-    ] = purchase_place
-
-    await message.reply_text(
-        (
-            "Qual foi o valor total?\n"
-            "Exemplos: 150,75 ou R$ 1.234,56."
-        ),
-        reply_markup=build_choice_keyboard(
-            [],
-        ),
-    )
-
-    return _move_to(
-        context,
-        PURCHASE_VALUE,
-    )
-
-
-async def receive_purchase_value(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return PURCHASE_VALUE
-
-    try:
-        purchase_value = MoneyParser.parse(
-            message.text or ""
-        )
-
-    except ValueError as error:
-        await message.reply_text(
-            str(error)
-        )
-        return PURCHASE_VALUE
-
-    _draft(context)[
-        "purchase_value"
-    ] = purchase_value
-
-    await _prompt_category(
-        message=message,
-    )
-
-    return _move_to(
-        context,
-        CATEGORY,
-    )
-
-
-async def receive_category(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return CATEGORY
-
-    try:
-        with container_context() as container:
-            category = (
-                container.lookup_service
-                .get_category(
-                    message.text or ""
-                )
-            )
-
-    except LookupNotFoundError as error:
-        await message.reply_text(
-            str(error)
-        )
-        return CATEGORY
-
-    _draft(context)[
-        "category"
-    ] = category.name
-
-    await _prompt_payment_method(
-        message=message,
-    )
-
-    return _move_to(
-        context,
-        PAYMENT_METHOD,
-    )
+    return PAYMENT_METHOD
 
 
 async def receive_payment_method(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    message = _message(update)
-
+    message = update.effective_message
     if message is None:
         return PAYMENT_METHOD
-
-    try:
-        with container_context() as container:
-            payment_method = (
-                container.lookup_service
-                .get_payment_method(
-                    message.text or ""
-                )
-            )
-
-    except LookupNotFoundError as error:
+    payment = (message.text or "").strip()
+    if payment not in PAYMENT_METHODS:
         await message.reply_text(
-            str(error)
+            "Escolha uma das quatro formas de pagamento.",
+            reply_markup=build_payment_keyboard(),
         )
         return PAYMENT_METHOD
 
-    _draft(context)[
-        "payment_method"
-    ] = payment_method.name
-
-    await message.reply_text(
-        "A compra foi parcelada?",
-        reply_markup=build_yes_no_keyboard(),
-    )
-
-    return _move_to(
-        context,
-        INSTALLMENT_CHOICE,
-    )
-
-
-async def receive_installment_choice(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return INSTALLMENT_CHOICE
-
-    try:
-        is_installment = parse_yes_no(
-            message.text or ""
-        )
-
-    except ExpenseInputError as error:
-        await message.reply_text(
-            str(error),
-            reply_markup=build_yes_no_keyboard(),
-        )
-        return INSTALLMENT_CHOICE
-
     draft = _draft(context)
-    draft[
-        "is_installment"
-    ] = is_installment
-
-    if not is_installment:
-        draft["installments"] = 1
-        draft[
-            "first_installment_due_date"
-        ] = None
-
+    if draft.is_installment and payment != PAYMENT_CREDIT_CARD:
         await message.reply_text(
-            "A despesa foi compartilhada com alguem?",
-            reply_markup=build_yes_no_keyboard(),
+            "Compras parceladas devem usar Cartão de crédito.",
+            reply_markup=build_payment_keyboard(),
         )
+        return PAYMENT_METHOD
 
-        return _move_to(
-            context,
-            SHARED_CHOICE,
-        )
-
+    context.user_data[PAYMENT_KEY] = payment
     await message.reply_text(
-        "Em quantas parcelas?",
-        reply_markup=build_choice_keyboard(
-            [
-                "2",
-                "3",
-                "6",
-                "10",
-                "12",
-            ],
-            columns=3,
-        ),
+        _confirmation_text(draft, payment),
+        reply_markup=build_confirmation_keyboard(),
     )
-
-    return _move_to(
-        context,
-        INSTALLMENTS,
-    )
-
-
-async def receive_installments(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return INSTALLMENTS
-
-    try:
-        installments = parse_installment_count(
-            message.text or ""
-        )
-
-    except ExpenseInputError as error:
-        await message.reply_text(
-            str(error)
-        )
-        return INSTALLMENTS
-
-    _draft(context)[
-        "installments"
-    ] = installments
-
-    await message.reply_text(
-        (
-            "Qual e a data de vencimento da primeira parcela?\n"
-            "Envie DD/MM/AAAA ou escolha Data da compra."
-        ),
-        reply_markup=build_date_keyboard(
-            allow_purchase_date=True,
-            include_back=True,
-        ),
-    )
-
-    return _move_to(
-        context,
-        FIRST_DUE_DATE,
-    )
-
-
-async def receive_first_due_date(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return FIRST_DUE_DATE
-
-    draft = _draft(context)
-    purchase_date = draft[
-        "purchase_date"
-    ].date()
-
-    try:
-        due_date = parse_date_input(
-            message.text or "",
-            purchase_date=purchase_date,
-        )
-
-    except ExpenseInputError as error:
-        await message.reply_text(
-            str(error)
-        )
-        return FIRST_DUE_DATE
-
-    if due_date < purchase_date:
-        await message.reply_text(
-            (
-                "O primeiro vencimento nao pode ser "
-                "anterior a data da compra."
-            )
-        )
-        return FIRST_DUE_DATE
-
-    draft[
-        "first_installment_due_date"
-    ] = due_date
-
-    await message.reply_text(
-        "A despesa foi compartilhada com alguem?",
-        reply_markup=build_yes_no_keyboard(),
-    )
-
-    return _move_to(
-        context,
-        SHARED_CHOICE,
-    )
-
-
-async def receive_shared_choice(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return SHARED_CHOICE
-
-    try:
-        is_shared = parse_yes_no(
-            message.text or ""
-        )
-
-    except ExpenseInputError as error:
-        await message.reply_text(
-            str(error),
-            reply_markup=build_yes_no_keyboard(),
-        )
-        return SHARED_CHOICE
-
-    draft = _draft(context)
-    draft["is_shared"] = is_shared
-
-    if not is_shared:
-        draft["shared_mode"] = None
-        draft["shared_people"] = ()
-
-        await message.reply_text(
-            (
-                "Deseja adicionar uma observacao?\n"
-                "Envie o texto ou escolha Pular."
-            ),
-            reply_markup=build_notes_keyboard(),
-        )
-
-        return _move_to(
-            context,
-            NOTES,
-        )
-
-    await message.reply_text(
-        (
-            "Como deseja dividir?\n\n"
-            "Divisao igual: o valor e dividido entre "
-            "voce e as pessoas informadas.\n"
-            "Valores exatos: informe quanto cada pessoa deve."
-        ),
-        reply_markup=build_shared_mode_keyboard(),
-    )
-
-    return _move_to(
-        context,
-        SHARED_MODE,
-    )
-
-
-async def receive_shared_mode(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return SHARED_MODE
-
-    try:
-        shared_mode = parse_shared_mode(
-            message.text or ""
-        )
-
-    except ExpenseInputError as error:
-        await message.reply_text(
-            str(error),
-            reply_markup=build_shared_mode_keyboard(),
-        )
-        return SHARED_MODE
-
-    draft = _draft(context)
-    draft["shared_mode"] = shared_mode
-    draft["shared_people"] = []
-
-    await message.reply_text(
-        _shared_people_prompt(context),
-        reply_markup=build_shared_people_keyboard(
-            DEFAULT_SHARED_PEOPLE,
-            shared_mode=shared_mode,
-        ),
-    )
-
-    return _move_to(
-        context,
-        SHARED_PEOPLE,
-    )
-
-
-async def receive_shared_people(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return SHARED_PEOPLE
-
-    draft = _draft(context)
-    action = (message.text or "").strip()
-    people = _shared_people(context)
-
-    if action == BUTTON_REMOVE_LAST_PERSON:
-        if people:
-            removed = people.pop()
-
-            await message.reply_text(
-                (
-                    f"{removed.name} removido.\n\n"
-                    + _shared_people_prompt(
-                        context
-                    )
-                ),
-                reply_markup=build_shared_people_keyboard(
-                    DEFAULT_SHARED_PEOPLE,
-                    shared_mode=draft["shared_mode"],
-                ),
-            )
-        else:
-            await message.reply_text(
-                "Nao ha pessoas para remover.",
-                reply_markup=build_shared_people_keyboard(
-                    DEFAULT_SHARED_PEOPLE,
-                    shared_mode=draft["shared_mode"],
-                ),
-            )
-
-        return SHARED_PEOPLE
-
-    if action == BUTTON_FINISH_PEOPLE:
-        try:
-            SharedExpenseSplitter().split(
-                total=draft["purchase_value"],
-                people=tuple(people),
-            )
-
-        except DomainError as error:
-            await message.reply_text(
-                str(error),
-                reply_markup=build_shared_people_keyboard(
-                    DEFAULT_SHARED_PEOPLE,
-                    shared_mode=draft["shared_mode"],
-                ),
-            )
-            return SHARED_PEOPLE
-
-        await message.reply_text(
-            (
-                "Deseja adicionar uma observacao?\n"
-                "Envie o texto ou escolha Pular."
-            ),
-            reply_markup=build_notes_keyboard(),
-        )
-
-        return _move_to(
-            context,
-            NOTES,
-        )
-
-    try:
-        person = parse_shared_person_entry(
-            action,
-            shared_mode=draft["shared_mode"],
-        )
-
-        normalized_name = TextNormalizer.normalize(
-            person.name
-        )
-
-        existing_names = {
-            TextNormalizer.normalize(
-                existing.name
-            )
-            for existing in people
-        }
-
-        if normalized_name in existing_names:
-            raise ExpenseInputError(
-                (
-                    f"A pessoa '{person.name}' "
-                    "ja foi adicionada."
-                )
-            )
-
-        candidate_people = tuple(
-            [*people, person]
-        )
-
-        SharedExpenseSplitter().split(
-            total=draft["purchase_value"],
-            people=candidate_people,
-        )
-
-    except (
-        ExpenseInputError,
-        DomainError,
-    ) as error:
-        await message.reply_text(
-            str(error),
-            reply_markup=build_shared_people_keyboard(
-                DEFAULT_SHARED_PEOPLE,
-                shared_mode=draft["shared_mode"],
-            ),
-        )
-        return SHARED_PEOPLE
-
-    people.append(person)
-
-    await message.reply_text(
-        (
-            f"{person.name} adicionado.\n\n"
-            + _shared_people_prompt(
-                context
-            )
-        ),
-        reply_markup=build_shared_people_keyboard(
-            DEFAULT_SHARED_PEOPLE,
-            shared_mode=draft["shared_mode"],
-        ),
-    )
-
-    return SHARED_PEOPLE
-
-
-async def receive_notes(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    message = _message(update)
-
-    if message is None:
-        return NOTES
-
-    raw_notes = (
-        message.text or ""
-    ).strip()
-
-    if raw_notes == BUTTON_SKIP:
-        notes = None
-    else:
-        notes = " ".join(
-            raw_notes.split()
-        )
-
-        if len(notes) > 500:
-            await message.reply_text(
-                "A observacao deve possuir no maximo 500 caracteres."
-            )
-            return NOTES
-
-        if not notes:
-            notes = None
-
-    _draft(context)["notes"] = notes
-
-    context.user_data[
-        CURRENT_STATE_KEY
-    ] = CONFIRM
-    context.user_data.setdefault(
-        HISTORY_KEY,
-        [],
-    ).append(NOTES)
-
-    await _show_review(
-        message=message,
-        context=context,
-    )
-
     return CONFIRM
 
 
@@ -944,517 +161,146 @@ async def confirm_expense(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    message = _message(update)
-
+    message = update.effective_message
     if message is None:
         return CONFIRM
-
-    action = (
-        message.text or ""
-    ).strip()
-
-    if action == BUTTON_RESTART:
-        return await start_expense(
-            update,
-            context,
-        )
-
-    if action != BUTTON_CONFIRM:
-        await message.reply_text(
-            "Escolha Confirmar, Recomecar, Voltar ou Cancelar.",
-            reply_markup=build_confirmation_keyboard(),
-        )
-        return CONFIRM
+    if (message.text or "").strip() != BUTTON_CONFIRM:
+        return await cancel_expense(update, context)
 
     draft = _draft(context)
-
-    data = ExpenseCreate(
-        purchase_date=draft["purchase_date"],
-        purchase_place=draft["purchase_place"],
-        purchase_value=draft["purchase_value"],
-        category=draft["category"],
-        payment_method=draft["payment_method"],
-        is_installment=draft["is_installment"],
-        installments=draft["installments"],
-        first_installment_due_date=(
-            draft[
-                "first_installment_due_date"
-            ]
-        ),
-        is_shared=draft["is_shared"],
-        shared_people=tuple(
-            draft["shared_people"]
-        ),
-        notes=draft.get("notes"),
-    )
+    payment = str(context.user_data.get(PAYMENT_KEY, ""))
 
     try:
         with container_context() as container:
-            expense = (
-                container.expense_service
-                .create_expense(data)
-            )
+            category = container.lookup_service.get_category(draft.category)
+            payment_entity = container.lookup_service.get_payment_method(payment)
 
-    except (
-        DomainError,
-        LookupNotFoundError,
-        ValueError,
-    ) as error:
+            if draft.is_recurring:
+                recurring = container.recurring_expense_service.create_recurring(
+                    description=draft.description,
+                    amount=draft.total,
+                    category_id=category.id,
+                    payment_method_id=payment_entity.id,
+                    due_day=draft.recurring_due_day or date.today().day,
+                    start_date=date.today(),
+                )
+                profile = container.financial_profile_repository.get_or_create_default()
+                container.recurring_expense_service.materialize(
+                    from_year=date.today().year,
+                    from_month=date.today().month,
+                    months=profile.projection_months,
+                )
+                result_text = (
+                    f"Gasto recorrente salvo: {recurring.description} "
+                    f"({format_brl(recurring.amount)} todo dia {recurring.due_day})."
+                )
+            else:
+                profile = container.financial_profile_repository.get_or_create_default()
+                credit = payment == PAYMENT_CREDIT_CARD
+                due_date = None
+                installment_count = draft.installments
+                if credit:
+                    due_date = first_installment_date(
+                        purchase_date=date.today(),
+                        closing_day=profile.credit_card_closing_day,
+                        installment_day=profile.credit_card_installment_day,
+                    )
+                expense = container.expense_service.create_expense(
+                    ExpenseCreate(
+                        purchase_date=datetime.now(),
+                        purchase_place=draft.description,
+                        purchase_value=draft.total,
+                        category=category.name,
+                        payment_method=payment_entity.name,
+                        is_installment=credit,
+                        installments=installment_count if credit else 1,
+                        first_installment_due_date=due_date,
+                        is_shared=draft.is_shared,
+                        shared_people=draft.shared_people,
+                        owner_amount=draft.owner_amount,
+                        notes=f"Registrada pelo Telegram: {draft.original_text}",
+                    )
+                )
+                result_text = f"Gasto salvo com sucesso. ID #{expense.id}."
+    except Exception as error:
         await message.reply_text(
-            (
-                "Nao foi possivel salvar a despesa:\n"
-                f"{error}\n\n"
-                "Use Voltar para corrigir ou Cancelar."
-            ),
-            reply_markup=build_confirmation_keyboard(),
+            f"Não foi possível salvar: {error}",
+            reply_markup=build_main_menu(),
         )
-        return CONFIRM
+        _clear(context)
+        return ConversationHandler.END
 
-    expense_id = getattr(
-        expense,
-        "id",
-        None,
-    )
-
-    suffix = (
-        f" #{expense_id}"
-        if expense_id is not None
-        else ""
-    )
-
-    _clear_flow(context)
-
-    await message.reply_text(
-        (
-            f"Despesa{suffix} cadastrada com sucesso."
-        ),
-        reply_markup=build_main_menu(),
-    )
-
+    _clear(context)
+    await message.reply_text(result_text, reply_markup=build_main_menu())
     return ConversationHandler.END
-
-
-async def go_back(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    history = context.user_data.get(
-        HISTORY_KEY,
-        [],
-    )
-
-    if not history:
-        return await cancel_expense(
-            update,
-            context,
-        )
-
-    previous_state = history.pop()
-    context.user_data[
-        CURRENT_STATE_KEY
-    ] = previous_state
-
-    message = _message(update)
-
-    if message is None:
-        return previous_state
-
-    await _prompt_state(
-        message=message,
-        context=context,
-        state=previous_state,
-    )
-
-    return previous_state
 
 
 async def cancel_expense(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    _clear_flow(context)
-
-    message = _message(update)
-
+    _clear(context)
+    message = update.effective_message
     if message is not None:
         await message.reply_text(
-            "Cadastro de despesa cancelado.",
+            "Cadastro cancelado.",
             reply_markup=build_main_menu(),
         )
-
     return ConversationHandler.END
 
 
-async def cancel_to_menu(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    _clear_flow(context)
-
-    message = _message(update)
-
-    if message is not None:
-        await message.reply_text(
-            (
-                "FinanceBot\n\n"
-                "Escolha uma opcao no menu."
-            ),
-            reply_markup=build_main_menu(),
-        )
-
-    return ConversationHandler.END
-
-
-async def _prompt_state(
-    *,
-    message,
-    context: ContextTypes.DEFAULT_TYPE,
-    state: int,
-) -> None:
-    if state == PURCHASE_DATE:
-        await message.reply_text(
-            (
-                "Qual foi a data da compra?\n"
-                "Envie DD/MM/AAAA ou escolha Hoje."
-            ),
-            reply_markup=build_date_keyboard(),
-        )
-        return
-
-    if state == PURCHASE_PLACE:
-        await message.reply_text(
-            "Em qual estabelecimento foi a compra?",
-            reply_markup=build_choice_keyboard(
-                [],
-            ),
-        )
-        return
-
-    if state == PURCHASE_VALUE:
-        await message.reply_text(
-            "Qual foi o valor total?",
-            reply_markup=build_choice_keyboard(
-                [],
-            ),
-        )
-        return
-
-    if state == CATEGORY:
-        await _prompt_category(
-            message=message,
-        )
-        return
-
-    if state == PAYMENT_METHOD:
-        await _prompt_payment_method(
-            message=message,
-        )
-        return
-
-    if state == INSTALLMENT_CHOICE:
-        await message.reply_text(
-            "A compra foi parcelada?",
-            reply_markup=build_yes_no_keyboard(),
-        )
-        return
-
-    if state == INSTALLMENTS:
-        await message.reply_text(
-            "Em quantas parcelas?",
-            reply_markup=build_choice_keyboard(
-                [
-                    "2",
-                    "3",
-                    "6",
-                    "10",
-                    "12",
-                ],
-                columns=3,
-            ),
-        )
-        return
-
-    if state == FIRST_DUE_DATE:
-        await message.reply_text(
-            (
-                "Qual e a data de vencimento "
-                "da primeira parcela?"
-            ),
-            reply_markup=build_date_keyboard(
-                allow_purchase_date=True,
-                include_back=True,
-            ),
-        )
-        return
-
-    if state == SHARED_CHOICE:
-        await message.reply_text(
-            "A despesa foi compartilhada com alguem?",
-            reply_markup=build_yes_no_keyboard(),
-        )
-        return
-
-    if state == SHARED_MODE:
-        await message.reply_text(
-            "Como deseja dividir?",
-            reply_markup=build_shared_mode_keyboard(),
-        )
-        return
-
-    if state == SHARED_PEOPLE:
-        shared_mode = _draft(
-            context
-        ).get("shared_mode")
-
-        await message.reply_text(
-            _shared_people_prompt(context),
-            reply_markup=build_shared_people_keyboard(
-                DEFAULT_SHARED_PEOPLE,
-                shared_mode=shared_mode,
-            ),
-        )
-        return
-
-    if state == NOTES:
-        await message.reply_text(
-            "Envie uma observacao ou escolha Pular.",
-            reply_markup=build_notes_keyboard(),
-        )
-        return
-
-    if state == CONFIRM:
-        await _show_review(
-            message=message,
-            context=context,
-        )
-
-
-async def _prompt_category(
-    *,
-    message,
-) -> None:
-    with container_context() as container:
-        names = (
-            container.lookup_service
-            .list_category_names()
-        )
-
-    await message.reply_text(
-        "Escolha ou digite a categoria:",
-        reply_markup=build_choice_keyboard(
-            names,
-            columns=2,
-        ),
-    )
-
-
-async def _prompt_payment_method(
-    *,
-    message,
-) -> None:
-    with container_context() as container:
-        names = (
-            container.lookup_service
-            .list_payment_method_names()
-        )
-
-    await message.reply_text(
-        "Escolha ou digite a forma de pagamento:",
-        reply_markup=build_choice_keyboard(
-            names,
-            columns=2,
-        ),
-    )
-
-
-async def _show_review(
-    *,
-    message,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    draft = _draft(context)
-
+def _confirmation_text(draft: NaturalExpenseDraft, payment: str) -> str:
     lines = [
-        "Revise a despesa:",
+        "Confira antes de salvar:",
         "",
-        (
-            "Data: "
-            + draft["purchase_date"].strftime(
-                "%d/%m/%Y"
-            )
-        ),
-        (
-            "Estabelecimento: "
-            + draft["purchase_place"]
-        ),
-        (
-            "Valor: "
-            + format_brl(
-                draft["purchase_value"]
-            )
-        ),
-        (
-            "Categoria: "
-            + draft["category"]
-        ),
-        (
-            "Pagamento: "
-            + draft["payment_method"]
-        ),
+        f"Descrição: {draft.description}",
+        f"Valor total: {format_brl(draft.total)}",
+        f"Categoria: {draft.category}",
+        f"Pagamento: {payment}",
     ]
-
-    if draft["is_installment"]:
+    if draft.is_installment:
+        installment = (draft.total / Decimal(draft.installments)).quantize(Decimal("0.01"))
         lines.append(
-            (
-                "Parcelamento: "
-                f"{draft['installments']}x"
-            )
+            f"Parcelamento: {draft.installments}x de aproximadamente {format_brl(installment)}"
         )
-        lines.append(
-            (
-                "Primeiro vencimento: "
-                + draft[
-                    "first_installment_due_date"
-                ].strftime("%d/%m/%Y")
-            )
-        )
-    else:
-        lines.append(
-            "Parcelamento: nao"
-        )
-
-    if draft["is_shared"]:
+    if draft.is_recurring:
+        lines.append(f"Recorrência: todo dia {draft.recurring_due_day}")
+    if draft.is_shared:
         split = SharedExpenseSplitter().split(
-            total=draft["purchase_value"],
-            people=tuple(
-                draft["shared_people"]
-            ),
+            total=draft.total,
+            people=draft.shared_people,
+            owner_amount=draft.owner_amount,
         )
-
-        lines.append(
-            (
-                "Sua parte: "
-                + format_brl(
-                    split.owner_amount
-                )
-            )
-        )
-
-        lines.append(
-            "Pessoas:"
-        )
-
-        for allocation in split.allocations:
-            lines.append(
-                (
-                    f"- {allocation.person_name}: "
-                    + format_brl(
-                        allocation.amount
-                    )
-                )
-            )
-    else:
-        lines.append(
-            "Compartilhada: nao"
-        )
-
-    lines.append(
-        (
-            "Observacao: "
-            + (
-                draft.get("notes")
-                or "-"
-            )
-        )
-    )
-
-    lines.extend(
-        [
-            "",
-            "Confirma o cadastro?",
-        ]
-    )
-
-    await message.reply_text(
-        "\n".join(lines),
-        reply_markup=build_confirmation_keyboard(),
-    )
+        lines.append("")
+        lines.append(f"Sua parte: {format_brl(split.owner_amount)}")
+        for item in split.allocations:
+            lines.append(f"{item.person_name}: {format_brl(item.amount)}")
+    lines.extend(["", "Confirmar?"])
+    return "\n".join(lines)
 
 
-def build_expense_conversation_handler(
-) -> ConversationHandler:
-    state_handlers = {
-        PURCHASE_DATE: receive_purchase_date,
-        PURCHASE_PLACE: receive_purchase_place,
-        PURCHASE_VALUE: receive_purchase_value,
-        CATEGORY: receive_category,
-        PAYMENT_METHOD: receive_payment_method,
-        INSTALLMENT_CHOICE: (
-            receive_installment_choice
-        ),
-        INSTALLMENTS: receive_installments,
-        FIRST_DUE_DATE: receive_first_due_date,
-        SHARED_CHOICE: receive_shared_choice,
-        SHARED_MODE: receive_shared_mode,
-        SHARED_PEOPLE: receive_shared_people,
-        NOTES: receive_notes,
-        CONFIRM: confirm_expense,
-    }
-
-    states = {
-        state: [
-            MessageHandler(
-                BACK_FILTER,
-                go_back,
-            ),
-            MessageHandler(
-                CANCEL_FILTER,
-                cancel_expense,
-            ),
-            MessageHandler(
-                TEXT_FILTER,
-                callback,
-            ),
-        ]
-        for state, callback in state_handlers.items()
-    }
-
+def build_expense_conversation_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
-            CommandHandler(
-                "gasto",
-                start_expense,
-            ),
-            MessageHandler(
-                filters.Regex(
-                    (
-                        "^"
-                        + re.escape(
-                            MENU_ADD_EXPENSE
-                        )
-                        + "$"
-                    )
-                ),
-                start_expense,
-            ),
+            CommandHandler("gasto", start_expense),
+            MessageHandler(filters.Regex(f"^{re.escape(MENU_ADD_EXPENSE)}$"), start_expense),
+            MessageHandler(DIRECT_TEXT_FILTER, receive_direct_text),
         ],
-        states=states,
+        states={
+            NATURAL_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_natural_text)],
+            PAYMENT_METHOD: [
+                MessageHandler(filters.Regex("^(?:" + "|".join(re.escape(v) for v in PAYMENT_METHODS) + ")$"), receive_payment_method),
+            ],
+            CONFIRM: [
+                MessageHandler(filters.Regex(f"^{re.escape(BUTTON_CONFIRM)}$"), confirm_expense),
+                MessageHandler(filters.Regex(f"^{re.escape(BUTTON_CANCEL)}$"), cancel_expense),
+            ],
+        },
         fallbacks=[
-            CommandHandler(
-                "cancelar",
-                cancel_expense,
-            ),
-            CommandHandler(
-                "start",
-                cancel_to_menu,
-            ),
-            MessageHandler(
-                CANCEL_FILTER,
-                cancel_expense,
-            ),
+            CommandHandler("cancelar", cancel_expense),
+            MessageHandler(filters.Regex(f"^{re.escape(BUTTON_CANCEL)}$"), cancel_expense),
         ],
         allow_reentry=True,
         per_chat=True,
         per_user=True,
-        per_message=False,
     )

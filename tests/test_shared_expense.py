@@ -59,23 +59,19 @@ def test_exact_split_keeps_owner_remainder():
     ) == Decimal("55.00")
 
 
-def test_reject_mixed_split_modes():
-    with pytest.raises(
-        ExpenseValidationError,
-        match="shared_people",
-    ):
-        SharedExpenseSplitter().split(
-            total=Decimal("100.00"),
-            people=(
-                SharedPersonCreate(
-                    name="Ana",
-                    amount="25,00",
-                ),
-                SharedPersonCreate(
-                    name="Bruno",
-                ),
-            ),
-        )
+def test_mixed_split_distributes_the_remainder():
+    result = SharedExpenseSplitter().split(
+        total=Decimal("100.00"),
+        people=(
+            SharedPersonCreate(name="Ana", amount="25,00"),
+            SharedPersonCreate(name="Bruno"),
+        ),
+    )
+    assert result.owner_amount == Decimal("37.50")
+    assert [item.amount for item in result.allocations] == [
+        Decimal("25.00"),
+        Decimal("37.50"),
+    ]
 
 
 def test_reject_duplicate_people():
@@ -90,7 +86,7 @@ def test_reject_duplicate_people():
                     name="Ana",
                 ),
                 SharedPersonCreate(
-                    name="\u00c1NA",
+                    name="ÁNA",
                 ),
             ),
         )
@@ -99,7 +95,7 @@ def test_reject_duplicate_people():
 def test_reject_exact_split_above_total():
     with pytest.raises(
         ExpenseValidationError,
-        match="superar",
+        match="supera",
     ):
         SharedExpenseSplitter().split(
             total=Decimal("100.00"),

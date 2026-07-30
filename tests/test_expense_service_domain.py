@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 import pytest
 
@@ -80,7 +81,7 @@ def test_service_uses_validated_expense():
         make_data()
     )
 
-    assert expense.purchase_value == 1234.56
+    assert expense.purchase_value == Decimal("1234.56")
     assert expense.purchase_place == "Loja Teste"
     assert expense.category_id == 10
     assert expense.payment_method_id == 20

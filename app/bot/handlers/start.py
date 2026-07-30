@@ -21,21 +21,24 @@ from app.bot.keyboards.main_menu import (
 
 
 WELCOME_TEXT = (
-    "\U0001f4b0 FinanceBot\n\n"
-    "Registre despesas e faca consultas rapidas."
+    "💰 FinanceBot\n\n"
+    "Envie o gasto em uma linha e eu pergunto somente como você pagou."
 )
 
 
 HELP_TEXT = (
-    "\u2753 Comandos disponiveis\n\n"
-    "/start - abrir o menu principal\n"
-    "/gasto - cadastrar uma despesa\n"
-    "/ultimos - ver os ultimos lancamentos\n"
-    "/receber - consultar valores a receber\n"
-    "/cancelar - cancelar o fluxo atual\n"
-    "/notificacoes - vincular este chat aos alertas\n"
-    "/ajuda - exibir esta ajuda"
+    "❓ Como registrar\n\n"
+    "mercado 230,50\n"
+    "tablet 1700 parcelado em 10x\n"
+    "presente giron, 300, tomas, yuzo\n"
+    "allianz 390 mensal dia 28\n\n"
+    "/gasto - iniciar o registro guiado\n"
+    "/ultimos - últimos lançamentos\n"
+    "/receber - valores a receber\n"
+    "/cancelar - cancelar o cadastro\n"
+    "/notificacoes - vincular alertas"
 )
+
 
 
 async def start(
