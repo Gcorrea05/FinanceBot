@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Float,
+    Numeric,
     ForeignKey,
     String,
 )
@@ -29,8 +30,8 @@ class Expense(Base):
         nullable=False,
     )
 
-    purchase_value: Mapped[float] = mapped_column(
-        Float,
+    purchase_value: Mapped[Decimal] = mapped_column(
+        Numeric(precision=12, scale=2, asdecimal=True),
         nullable=False,
     )
 

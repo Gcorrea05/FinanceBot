@@ -1,62 +1,57 @@
-# FinanceBot em producao
+# Implantacao local com Docker
 
-## Arquitetura
+## Estrutura
 
-A implantacao final executa quatro processos independentes:
+O FinanceBot usa um unico arquivo Compose: `compose.yml`.
 
-- API FastAPI;
-- bot do Telegram;
-- scheduler geral;
-- frontend React servido pelo Nginx.
+Servicos:
 
-Antes deles, o servico `migrate` aplica as migrations ate
-`20260724_0005`.
+- `migrate`: aplica Alembic, carga inicial idempotente e validacao do SQLite;
+- `api`: FastAPI;
+- `bot`: Telegram;
+- `scheduler`: automacoes e despesas recorrentes;
+- `web`: React servido pelo Nginx.
 
-O SQLite fica no volume persistente `financebot_data`.
-Logs, relatorios e backups usam volumes separados.
+Somente `127.0.0.1:8080` e publicado. API e banco permanecem internos.
 
-## Fonte das configuracoes
+## Persistencia
 
-Valores reais sao carregados exclusivamente do arquivo `.env`.
+Volumes:
 
-O `.env.example` nao e utilizado pela aplicacao nem pelo Docker
-Compose. Ele permanece somente como modelo de documentacao.
+- `financebot_data`: SQLite e relatorios;
+- `financebot_backups`: backups;
+- `financebot_logs`: logs.
 
-O script abaixo preserva as configuracoes existentes e adiciona
-somente as chaves de producao que estiverem ausentes:
+Parar containers nao apaga esses volumes. Nao use `docker compose down -v`.
+
+## Configuracao
+
+Valores reais sao lidos exclusivamente de `.env`. O `.env.example` e somente modelo e nunca deve receber o token real.
+
+Prepare as variaveis ausentes sem substituir as existentes:
 
 ```powershell
 .\scripts\prepare_production_env.ps1
 ```
 
-O token permanece em:
-
-```text
-TELEGRAM_TOKEN=...
-```
-
-## Requisitos
-
-- Docker Desktop;
-- Docker Compose V2;
-- `.env` preenchido;
-- `TELEGRAM_TOKEN` preenchido no `.env`;
-- porta 8080 livre.
-
-## Inicializacao
+## Primeira subida ou atualizacao
 
 ```powershell
 .\scripts\production_up.ps1
 ```
 
-Acesse:
+O fluxo executado e:
 
 ```text
-http://127.0.0.1:8080
+build
+-> migrate
+-> seed idempotente da fatura 08/2026
+-> integrity_check e foreign_key_check
+-> API healthy
+-> bot, scheduler e web
 ```
 
-A API e o banco nao possuem portas publicadas. O Nginx encaminha
-`/api` pela rede interna do Docker.
+Acesse `http://127.0.0.1:8080`.
 
 ## Status e logs
 
@@ -65,46 +60,33 @@ A API e o banco nao possuem portas publicadas. O Nginx encaminha
 .\scripts\production_logs.ps1
 ```
 
-## Parada
+`migrate` terminar com `Exited (0)` e esperado.
+
+## Backup
+
+```powershell
+.\scripts\backup_production.ps1
+.\scripts\list_production_backups.ps1
+```
+
+O backup usa `sqlite3.Connection.backup`, seguido de verificacao de integridade.
+
+## Restauracao
+
+```powershell
+.\scripts\restore_production.ps1 `
+    -BackupName "financebot-AAAAMMDD-HHMMSS.db"
+```
+
+A restauracao exige confirmacao explicita e os processos que escrevem no banco devem estar parados.
+
+## Parada segura
 
 ```powershell
 .\scripts\production_down.ps1
 ```
 
-O comando preserva os volumes.
-
-## Backup manual
-
-```powershell
-.\scripts\backup_production.ps1
-```
-
-Para listar backups:
-
-```powershell
-.\scripts\list_production_backups.ps1
-```
-
-## Restauracao
-
-Primeiro, liste os arquivos e copie o nome desejado:
-
-```powershell
-.\scripts\list_production_backups.ps1
-```
-
-Depois:
-
-```powershell
-.\scripts\restore_production.ps1 `
-    -BackupName "financebot-20260726-120000.db"
-```
-
-A restauracao exige a confirmacao textual `RESTAURAR`.
-
-## Atualizacao
-
-Antes de atualizar:
+## Atualizacao de codigo
 
 ```powershell
 .\scripts\backup_production.ps1
@@ -112,13 +94,6 @@ git pull --ff-only origin main
 .\scripts\production_up.ps1
 ```
 
-O container `migrate` atualiza o banco antes da API, do bot e do
-scheduler.
+## Computador ligado
 
-## Limite de exposicao
-
-O endereco padrao e `127.0.0.1`. Portanto, o site fica acessivel
-somente na propria maquina.
-
-Nao altere `PRODUCTION_WEB_BIND_ADDRESS` para `0.0.0.0` sem VPN,
-HTTPS e autenticacao externa.
+Para operacao continua local, o Docker Desktop precisa iniciar com o Windows e o computador nao pode entrar em suspensao.

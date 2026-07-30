@@ -1,89 +1,54 @@
 # FinanceBot REST API
 
-The REST API is the backend contract for the future web interface.
-The Telegram bot remains focused on quick registration and operational
-queries.
+A API e o contrato do site. O Telegram registra gastos pelos mesmos services de dominio.
 
-## Local development
-
-Install dependencies:
+## Execucao local
 
 ```powershell
-python -m pip install -r requirements-dev.txt
-```
-
-Bootstrap migration tracking:
-
-```powershell
-python -m scripts.bootstrap_migrations
-```
-
-Start the API:
-
-```powershell
+python -m scripts.production_bootstrap
 python -m uvicorn app.api.main:app --reload
 ```
 
-Open:
+Endpoints de saude:
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-- Liveness: `http://127.0.0.1:8000/api/v1/health/live`
-- Readiness: `http://127.0.0.1:8000/api/v1/health/ready`
+- `GET /api/v1/health/live`;
+- `GET /api/v1/health/ready`.
 
-## Initial endpoints
+## Grupos de endpoints
 
-- `GET /api/v1/references/categories`
-- `GET /api/v1/references/payment-methods`
-- `POST /api/v1/expenses`
-- `GET /api/v1/expenses`
-- `GET /api/v1/expenses/{expense_id}`
-- `DELETE /api/v1/expenses/{expense_id}`
-- `GET /api/v1/receivables`
-- `GET /api/v1/receivables/people/{person_id}`
-- `POST /api/v1/receivables/{receivable_id}/settle`
-- `GET /api/v1/budgets/{year}/{month}`
-- `PUT /api/v1/budgets/{year}/{month}`
-- `GET /api/v1/reports/overview`
-- `POST /api/v1/imports/preview`
-- `POST /api/v1/imports/{batch_id}/confirm`
-- `GET /api/v1/imports`
+- `/api/v1/expenses`: consulta e manutencao de despesas;
+- `/api/v1/receivables`: valores a receber;
+- `/api/v1/budgets`: renda, reserva e limite por competencia;
+- `/api/v1/future`: projecao dos proximos meses;
+- `/api/v1/recurring-expenses`: recorrencias e ocorrencias;
+- `/api/v1/reports`: relatorios e exportacoes;
+- `/api/v1/intelligence`: inteligencia explicavel;
+- `/api/v1/imports`: importacoes CSV, XLSX e OFX;
+- `/api/v1/automations`: configuracoes do scheduler;
+- `/api/v1/references`: categorias e meios de pagamento.
 
-## Scope and security
+## Meios de pagamento
 
-This batch is for local development and binds to `127.0.0.1` by
-default. Authentication is intentionally deferred until the interface
-and deployment model are defined. Do not expose this API publicly yet.
+A referencia publica retorna somente:
+
+- Cartao de credito;
+- Debito;
+- Pix;
+- Dinheiro.
+
+## Planejamento
+
+`PUT /api/v1/budgets/{year}/{month}` aceita renda, reserva, limite e `repeat_months`. Cada competencia e persistida como registro independente para preservar historico.
+
+## Futuro
+
+A projecao combina parcelas, recorrencias, gastos realizados e planejamento mensal. Ela nao transforma ocorrencias futuras em despesas antes da data prevista.
 
 ## Migrations
 
-The first Alembic revision is an empty baseline because the schema
-already existed before migration tracking.
-
-The bootstrap command:
-
-1. creates and seeds a new database, then stamps the baseline;
-2. validates and stamps an existing compatible database;
-3. upgrades a database that already has Alembic tracking.
-
-For future model changes:
-
 ```powershell
-alembic revision --autogenerate -m "describe change"
 alembic upgrade head
+python -m scripts.validate_database
 ```
 
-Review every generated migration before committing it.
-
-
-## Reports
-
-`GET /api/v1/reports/overview` accepts:
-
-- `start_year` and `start_month`;
-- `end_year` and `end_month`;
-- optional `category`;
-- optional `payment_method`;
-- optional `place`.
-
-The response contains monthly comparison, category distribution, merchant ranking and active installment commitments. A single request may cover at most 24 months.
+A revisao esperada apos este batch e `20260729_0006`.

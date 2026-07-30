@@ -26,6 +26,12 @@ class BudgetPlanRequest(BaseModel):
         decimal_places=2,
     )
 
+    repeat_months: int = Field(
+        default=1,
+        ge=1,
+        le=36,
+    )
+
 
 class BudgetOverviewResponse(BaseModel):
     year: int

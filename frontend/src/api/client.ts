@@ -7,11 +7,13 @@ import type {
   BudgetOverview,
   BudgetPlanPayload,
   DashboardOverview,
-  FinanceAgentResponse,
   Expense,
   ExpenseListResponse,
   ExpenseMutationPayload,
   ExpenseQuery,
+  FutureOverview,
+  RecurringExpense,
+  RecurringExpensePayload,
   HealthResponse,
   ImportBatch,
   ImportColumnMapping,
@@ -358,16 +360,28 @@ export const financeApi = {
     );
   },
 
-  askFinanceAgent(
-    question: string,
-  ): Promise<FinanceAgentResponse> {
-    return jsonRequest<
-      { question: string },
-      FinanceAgentResponse
-    >(
-      "/agent/query",
-      "POST",
-      { question },
+  getFutureOverview(
+    fromYear: number,
+    fromMonth: number,
+    months = 12,
+  ): Promise<FutureOverview> {
+    return request<FutureOverview>(
+      `/future/overview?from_year=${fromYear}&from_month=${fromMonth}&months=${months}`,
+    );
+  },
+
+  listRecurringExpenses(): Promise<RecurringExpense[]> {
+    return request<RecurringExpense[]>("/recurring-expenses");
+  },
+
+  updateRecurringExpense(
+    recurringId: number,
+    payload: RecurringExpensePayload,
+  ): Promise<RecurringExpense> {
+    return jsonRequest<RecurringExpensePayload, RecurringExpense>(
+      `/recurring-expenses/${recurringId}`,
+      "PUT",
+      payload,
     );
   },
 

@@ -1,14 +1,10 @@
 import re
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
-from app.domain.exceptions import (
-    ExpenseValidationError,
-)
+from app.domain.exceptions import ExpenseValidationError
 from app.domain.money import MoneyParser
-from app.schemas.expense.shared_person import (
-    SharedPersonCreate,
-)
+from app.schemas.expense.shared_person import SharedPersonCreate
 from app.utils.text_normalizer import TextNormalizer
 
 
@@ -34,225 +30,128 @@ class SharedExpenseSplitter:
         self,
         total: Decimal,
         people: tuple[SharedPersonCreate, ...],
+        owner_amount=None,
     ) -> SharedSplitResult:
-        validated_people = self._validate_people(
-            people
-        )
+        validated = self._validate_people(people)
+        explicit_owner = self._optional_money(owner_amount, "minha parte")
 
-        amounts_provided = [
-            person.amount is not None
-            for person in validated_people
-        ]
+        parsed: list[tuple[SharedPersonCreate, Decimal | None]] = []
+        explicit_total = explicit_owner or Decimal("0.00")
+        unspecified = 0
 
-        if all(amounts_provided):
-            return self._split_exact(
-                total=total,
-                people=validated_people,
-            )
+        for person in validated:
+            amount = self._optional_money(person.amount, person.name)
+            parsed.append((person, amount))
+            if amount is None:
+                unspecified += 1
+            else:
+                explicit_total += amount
 
-        if any(amounts_provided):
+        if explicit_total > total:
             raise ExpenseValidationError(
                 "shared_people",
-                (
-                    "Informe o valor de todas as pessoas "
-                    "ou deixe todos os valores vazios "
-                    "para divisao igual."
-                ),
+                "A soma das partes informadas supera o valor total.",
             )
 
-        return self._split_equal(
-            total=total,
-            people=validated_people,
-        )
+        owner_unspecified = explicit_owner is None
+        slots = unspecified + (1 if owner_unspecified else 0)
+        remainder = (total - explicit_total).quantize(self.CENT)
+
+        if slots == 0 and remainder != Decimal("0.00"):
+            raise ExpenseValidationError(
+                "shared_people",
+                "Os valores informados nao fecham o total da despesa.",
+            )
+
+        distributed = self._split_amount(remainder, slots) if slots else ()
+        cursor = 0
+
+        if owner_unspecified:
+            owner = distributed[cursor]
+            cursor += 1
+        else:
+            owner = explicit_owner
+
+        allocations: list[SharedAllocation] = []
+        for person, amount in parsed:
+            resolved = amount
+            if resolved is None:
+                resolved = distributed[cursor]
+                cursor += 1
+            allocations.append(
+                SharedAllocation(
+                    person_name=person.name,
+                    normalized_name=TextNormalizer.normalize(person.name),
+                    amount=resolved.quantize(self.CENT),
+                )
+            )
+
+        allocated = sum((item.amount for item in allocations), Decimal("0.00"))
+        difference = (total - owner - allocated).quantize(self.CENT)
+        if difference:
+            # Centavos de arredondamento ficam com o proprietario sempre que
+            # a parte dele nao foi explicitamente fixada.
+            if owner_unspecified:
+                owner = (owner + difference).quantize(self.CENT)
+            elif allocations:
+                last = allocations[-1]
+                allocations[-1] = SharedAllocation(
+                    last.person_name,
+                    last.normalized_name,
+                    (last.amount + difference).quantize(self.CENT),
+                )
+            else:
+                raise ExpenseValidationError(
+                    "shared_people", "Nao foi possivel fechar a divisao."
+                )
+
+        return SharedSplitResult(owner.quantize(self.CENT), tuple(allocations))
 
     def _validate_people(
-        self,
-        people: tuple[SharedPersonCreate, ...],
+        self, people: tuple[SharedPersonCreate, ...]
     ) -> tuple[SharedPersonCreate, ...]:
         if not people:
             raise ExpenseValidationError(
                 "shared_people",
-                (
-                    "Uma despesa compartilhada deve "
-                    "possuir pelo menos uma pessoa."
-                ),
+                "Uma despesa compartilhada deve possuir pelo menos uma pessoa.",
             )
-
-        normalized_names: set[str] = set()
-        validated: list[SharedPersonCreate] = []
-
+        seen: set[str] = set()
+        result: list[SharedPersonCreate] = []
         for person in people:
-            if not isinstance(
-                person,
-                SharedPersonCreate,
-            ):
+            if not isinstance(person, SharedPersonCreate):
+                raise ExpenseValidationError("shared_people", "Informe pessoas validas.")
+            name = self._WHITESPACE.sub(" ", person.name).strip()
+            if len(name) < 2 or len(name) > self.MAX_NAME_LENGTH:
                 raise ExpenseValidationError(
-                    "shared_people",
-                    "Informe pessoas validas.",
+                    "shared_people", "O nome deve possuir entre 2 e 120 caracteres."
                 )
-
-            name = self._WHITESPACE.sub(
-                " ",
-                person.name,
-            ).strip()
-
-            if len(name) < 2:
+            normalized = TextNormalizer.normalize(name)
+            if normalized in seen:
                 raise ExpenseValidationError(
-                    "shared_people",
-                    (
-                        "O nome da pessoa deve possuir "
-                        "pelo menos 2 caracteres."
-                    ),
+                    "shared_people", f"A pessoa '{name}' foi informada mais de uma vez."
                 )
+            seen.add(normalized)
+            result.append(SharedPersonCreate(name=name, amount=person.amount))
+        return tuple(result)
 
-            if len(name) > self.MAX_NAME_LENGTH:
-                raise ExpenseValidationError(
-                    "shared_people",
-                    (
-                        "O nome da pessoa deve possuir "
-                        f"no maximo {self.MAX_NAME_LENGTH} "
-                        "caracteres."
-                    ),
-                )
-
-            normalized_name = (
-                TextNormalizer.normalize(name)
-            )
-
-            if normalized_name in normalized_names:
-                raise ExpenseValidationError(
-                    "shared_people",
-                    (
-                        f"A pessoa '{name}' foi informada "
-                        "mais de uma vez."
-                    ),
-                )
-
-            normalized_names.add(
-                normalized_name
-            )
-
-            validated.append(
-                SharedPersonCreate(
-                    name=name,
-                    amount=person.amount,
-                )
-            )
-
-        return tuple(validated)
-
-    def _split_equal(
-        self,
-        total: Decimal,
-        people: tuple[SharedPersonCreate, ...],
-    ) -> SharedSplitResult:
-        participant_count = len(people) + 1
-
-        amounts = self._split_amount(
-            total=total,
-            parts=participant_count,
-        )
-
-        owner_amount = amounts[0]
-
-        allocations = tuple(
-            SharedAllocation(
-                person_name=person.name,
-                normalized_name=(
-                    TextNormalizer.normalize(
-                        person.name
-                    )
-                ),
-                amount=amounts[index + 1],
-            )
-            for index, person in enumerate(people)
-        )
-
-        return SharedSplitResult(
-            owner_amount=owner_amount,
-            allocations=allocations,
-        )
-
-    def _split_exact(
-        self,
-        total: Decimal,
-        people: tuple[SharedPersonCreate, ...],
-    ) -> SharedSplitResult:
-        allocations: list[SharedAllocation] = []
-
-        for person in people:
-            try:
-                amount = MoneyParser.parse(
-                    person.amount
-                )
-            except ValueError as error:
-                raise ExpenseValidationError(
-                    "shared_people",
-                    (
-                        f"Valor invalido para "
-                        f"'{person.name}': {error}"
-                    ),
-                ) from error
-
-            allocations.append(
-                SharedAllocation(
-                    person_name=person.name,
-                    normalized_name=(
-                        TextNormalizer.normalize(
-                            person.name
-                        )
-                    ),
-                    amount=amount,
-                )
-            )
-
-        allocated_total = sum(
-            (
-                allocation.amount
-                for allocation in allocations
-            ),
-            start=Decimal("0.00"),
-        )
-
-        if allocated_total > total:
+    @staticmethod
+    def _optional_money(value, label: str) -> Decimal | None:
+        if value is None:
+            return None
+        try:
+            return MoneyParser.parse(value)
+        except ValueError as error:
             raise ExpenseValidationError(
-                "shared_people",
-                (
-                    "A soma das partes das pessoas "
-                    "nao pode superar o valor da despesa."
-                ),
-            )
-
-        return SharedSplitResult(
-            owner_amount=(
-                total - allocated_total
-            ).quantize(self.CENT),
-            allocations=tuple(allocations),
-        )
+                "shared_people", f"Valor invalido para '{label}': {error}"
+            ) from error
 
     @classmethod
-    def _split_amount(
-        cls,
-        total: Decimal,
-        parts: int,
-    ) -> tuple[Decimal, ...]:
-        total_cents = int(
-            (
-                total.quantize(cls.CENT)
-                * 100
-            )
-        )
-
-        base_cents, remainder = divmod(
-            total_cents,
-            parts,
-        )
-
+    def _split_amount(cls, total: Decimal, parts: int) -> tuple[Decimal, ...]:
+        if parts <= 0:
+            return ()
+        cents = int((total.quantize(cls.CENT, rounding=ROUND_HALF_UP)) * 100)
+        base, remainder = divmod(cents, parts)
         return tuple(
-            Decimal(
-                base_cents
-                + (1 if index < remainder else 0)
-            )
-            / Decimal("100")
+            (Decimal(base + (1 if index < remainder else 0)) / Decimal("100"))
             for index in range(parts)
         )

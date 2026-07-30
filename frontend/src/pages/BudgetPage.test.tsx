@@ -125,6 +125,7 @@ describe("BudgetPage", () => {
         monthly_income: "5000.00",
         reserve_target: "1000.00",
         spending_limit: "3000.00",
+        repeat_months: 1,
       },
     );
 

@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     logs `
     --tail 250 `
     -f `

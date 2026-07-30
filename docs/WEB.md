@@ -1,76 +1,46 @@
 # FinanceBot Web
 
-A interface web complementa o Telegram. O bot continua focado em registro rapido e consulta operacional; o painel web concentra visualizacao, manutencao e planejamento.
+## Papel da interface
 
-## Funcionalidades atuais
+O site concentra consulta, planejamento, manutencao e relatorios. O registro cotidiano de novos gastos e feito pelo Telegram.
 
-- dashboard do mes atual;
-- lista de despesas com filtro mensal e paginacao;
-- cadastro de despesas simples, parceladas e compartilhadas;
-- edicao completa de despesas;
-- exclusao mediante confirmacao;
-- valores a receber com baixa de pendencias;
-- planejamento mensal de renda, reserva e limite de gastos;
-- calculo de saldo restante e limite diario;
-- relatorios com comparacao mensal;
-- gastos por categoria e ranking de estabelecimentos;
-- acompanhamento de parcelamentos ativos;
-- tratamento de API indisponivel;
-- testes automatizados do cliente HTTP e dos formularios;
-- importacoes CSV, XLSX e OFX com pre-visualizacao e historico.
+## Funcionalidades
 
-## Regra do planejamento mensal
+- dashboard mensal;
+- consulta, edicao e exclusao de lancamentos;
+- valores a receber;
+- renda, reserva e limite de gastos;
+- aplicacao do planejamento a meses futuros;
+- projecao de parcelas e despesas recorrentes;
+- valor disponivel estimado;
+- relatorios, graficos, inteligencia e Excel;
+- importacoes CSV, XLSX e OFX;
+- configuracao de automacoes.
 
-O planejamento usa duas referencias de data:
+## Proximos meses
 
-- despesa simples: entra no mes da compra;
-- despesa parcelada: entra no mes de vencimento de cada parcela.
+A pagina **Proximos meses** mostra, por competencia:
 
-Em despesas compartilhadas, somente a parte do proprietario entra no gasto mensal. Os valores de outras pessoas permanecem na area de valores a receber.
+- realizado;
+- parcelas;
+- recorrencias;
+- total comprometido;
+- renda planejada;
+- reserva;
+- limite de gastos;
+- valor disponivel estimado.
 
-A soma da meta de reserva com o limite de gastos nao pode ultrapassar a renda mensal.
+Ela tambem permite manter valor, dia e status das despesas recorrentes.
 
-## Regra de seguranca da edicao
+## Planejamento
 
-Uma despesa com parcela marcada como paga ou valor compartilhado marcado como recebido nao pode ser reestruturada. A API retorna conflito para impedir que um historico financeiro ja confirmado seja apagado durante a edicao.
+A renda pode ser alterada pelo site por competencia. A opcao de repeticao cria registros independentes para os meses seguintes, preservando o historico.
 
-## Executar localmente
+## Regras
 
-Terminal 1, na raiz:
-
-```powershell
-python -m uvicorn app.api.main:app --reload
-```
-
-Terminal 2:
-
-```powershell
-cd frontend
-npm run dev
-```
-
-Acesse `http://127.0.0.1:5173`.
-
-## Configuracao
-
-Copie `frontend/.env.example` para `frontend/.env` quando precisar alterar o endereco da API.
-
-```env
-VITE_API_URL=http://127.0.0.1:8000/api/v1
-```
-
-## Limites atuais
-
-Autenticacao e automatizacoes ainda nao fazem parte da interface.
-
-
-## Regra dos relatorios
-
-Os relatorios seguem a mesma regra do planejamento mensal:
-
-- despesas simples entram no mes da compra;
-- despesas parceladas entram pelo vencimento da parcela;
-- em compras compartilhadas, apenas a parte do proprietario e contabilizada;
-- o periodo maximo por consulta e de 24 meses.
-
-Os filtros disponiveis sao categoria, forma de pagamento e parte do nome do estabelecimento.
+- despesa simples nao-cartao entra pela data da compra;
+- cartao entra pela competencia da fatura;
+- parcelas entram pela data prevista;
+- somente a parte do proprietario conta como gasto compartilhado;
+- reserva mais limite nao pode ultrapassar a renda;
+- sem limite configurado, o sistema nao inventa quanto pode ser gasto.

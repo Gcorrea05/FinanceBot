@@ -1,4 +1,3 @@
-
 from collections.abc import Iterable
 from difflib import get_close_matches
 from typing import Protocol, TypeVar, cast
@@ -10,7 +9,7 @@ from app.utils.text_normalizer import TextNormalizer
 
 
 class LookupNotFoundError(ValueError):
-    """Erro gerado quando um dado de refer?ncia n\u00e3o ? encontrado."""
+    """Raised when a reference value cannot be resolved."""
 
 
 class NamedEntity(Protocol):
@@ -21,23 +20,16 @@ NamedEntityT = TypeVar("NamedEntityT", bound=NamedEntity)
 
 
 class LookupService:
-    """Resolve categorias e formas de pagamento a partir de texto livre."""
-
     CATEGORY_ALIASES: dict[str, str] = {
-        # Alimenta??o
         "comida": "alimentacao",
         "restaurante": "alimentacao",
         "lanche": "alimentacao",
         "delivery": "alimentacao",
         "ifood": "alimentacao",
-
-        # Mercado
         "supermercado": "mercado",
         "feira": "mercado",
         "hortifruti": "mercado",
         "compras do mes": "mercado",
-
-        # Transporte
         "uber": "transporte",
         "99": "transporte",
         "taxi": "transporte",
@@ -45,64 +37,50 @@ class LookupService:
         "metro": "transporte",
         "combustivel": "transporte",
         "gasolina": "transporte",
-
-        # Sa?de
         "farmacia": "saude",
         "medico": "saude",
         "consulta": "saude",
         "remedio": "saude",
-
-        # Educa??o
         "curso": "educacao",
         "faculdade": "educacao",
         "escola": "educacao",
         "livro": "educacao",
-
-        # Assinaturas
         "assinatura": "assinaturas",
         "streaming": "assinaturas",
         "netflix": "assinaturas",
         "spotify": "assinaturas",
-
-        # Casa
         "moradia": "casa",
         "aluguel": "casa",
         "condominio": "casa",
         "energia": "casa",
         "agua": "casa",
-
-        # Lazer
         "cinema": "lazer",
         "passeio": "lazer",
         "entretenimento": "lazer",
-
-        # Viagem
         "hotel": "viagem",
         "passagem": "viagem",
         "hospedagem": "viagem",
-
-        # Outros
         "outro": "outros",
         "diversos": "outros",
     }
 
-    PAYMENT_METHOD_ALIASES: dict[str, str] = {
-        # Pix
-        "transferencia pix": "pix",
+    ALLOWED_PAYMENT_METHODS: tuple[str, ...] = (
+        "Cartão de crédito",
+        "Débito",
+        "Pix",
+        "Dinheiro",
+    )
 
-        # D?bito
+    PAYMENT_METHOD_ALIASES: dict[str, str] = {
+        "credito": "cartao de credito",
+        "cartao credito": "cartao de credito",
+        "cc": "cartao de credito",
+        "debito": "debito",
         "cartao de debito": "debito",
         "cartao debito": "debito",
         "deb": "debito",
         "cd": "debito",
-
-        # Cr?dito
-        "cartao de credito": "credito",
-        "cartao credito": "credito",
-        "cred": "credito",
-        "cc": "credito",
-
-        # Dinheiro
+        "transferencia pix": "pix",
         "especie": "dinheiro",
         "cash": "dinheiro",
     }
@@ -116,40 +94,49 @@ class LookupService:
         self.payment_method_repository = payment_method_repository
 
     def get_category(self, name: str) -> Category:
-        category = self._resolve(
-            raw_name=name,
-            items=self.category_repository.get_all(),
-            aliases=self.CATEGORY_ALIASES,
-            entity_label="Categoria",
+        return cast(
+            Category,
+            self._resolve(
+                name,
+                self.category_repository.get_all(),
+                self.CATEGORY_ALIASES,
+                "Categoria",
+            ),
         )
-
-        return cast(Category, category)
 
     def get_payment_method(self, name: str) -> PaymentMethod:
-        payment_method = self._resolve(
-            raw_name=name,
-            items=self.payment_method_repository.get_all(),
-            aliases=self.PAYMENT_METHOD_ALIASES,
-            entity_label="Forma de pagamento",
+        return cast(
+            PaymentMethod,
+            self._resolve(
+                name,
+                self.payment_method_repository.get_all(),
+                self.PAYMENT_METHOD_ALIASES,
+                "Forma de pagamento",
+            ),
         )
 
-        return cast(PaymentMethod, payment_method)
-
     def list_category_names(self) -> list[str]:
-        categories = self.category_repository.get_all()
-
         return sorted(
-            (category.name for category in categories),
+            (item.name for item in self.category_repository.get_all()),
             key=TextNormalizer.normalize,
         )
 
     def list_payment_method_names(self) -> list[str]:
-        payment_methods = self.payment_method_repository.get_all()
+        available: set[str] = set()
 
-        return sorted(
-            (payment.name for payment in payment_methods),
-            key=TextNormalizer.normalize,
-        )
+        for item in self.payment_method_repository.get_all():
+            normalized = TextNormalizer.normalize(item.name)
+            canonical = self.PAYMENT_METHOD_ALIASES.get(
+                normalized,
+                normalized,
+            )
+            available.add(canonical)
+
+        return [
+            name
+            for name in self.ALLOWED_PAYMENT_METHODS
+            if TextNormalizer.normalize(name) in available
+        ]
 
     @staticmethod
     def _resolve(
@@ -159,48 +146,45 @@ class LookupService:
         entity_label: str,
     ) -> NamedEntityT:
         normalized_input = TextNormalizer.normalize(raw_name)
-
         if not normalized_input:
             raise LookupNotFoundError(
-                f"{entity_label} n\u00e3o pode ficar vazia."
+                f"{entity_label} nao pode ficar vazia."
             )
 
-        normalized_target = aliases.get(
+        target = aliases.get(
             normalized_input,
             normalized_input,
         )
+        index: dict[str, NamedEntityT] = {}
 
-        item_index = {
-            TextNormalizer.normalize(item.name): item
-            for item in items
-        }
+        for item in items:
+            normalized_name = TextNormalizer.normalize(
+                item.name
+            )
+            canonical_name = aliases.get(
+                normalized_name,
+                normalized_name,
+            )
+            index.setdefault(normalized_name, item)
+            index.setdefault(canonical_name, item)
 
-        matched_item = item_index.get(normalized_target)
-
-        if matched_item is not None:
-            return matched_item
+        matched = index.get(target)
+        if matched is not None:
+            return matched
 
         suggestions = get_close_matches(
-            normalized_target,
-            list(item_index.keys()),
+            target,
+            list(index),
             n=3,
             cutoff=0.55,
         )
-
-        message = (
-            f"{entity_label} '{raw_name}' n\u00e3o encontrada."
-        )
-
+        message = f"{entity_label} '{raw_name}' nao encontrada."
         if suggestions:
-            suggested_names = [
-                item_index[suggestion].name
-                for suggestion in suggestions
-            ]
-
-            message += (
-                " Voc\u00ea quis dizer: "
-                + ", ".join(suggested_names)
-                + "?"
-            )
+            names = []
+            for suggestion in suggestions:
+                candidate = index[suggestion].name
+                if candidate not in names:
+                    names.append(candidate)
+            message += " Voce quis dizer: " + ", ".join(names) + "?"
 
         raise LookupNotFoundError(message)

@@ -1,0 +1,18 @@
+.future-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.future-table-panel { margin-bottom: 22px; }
+.future-status { display: inline-flex; padding: 6px 9px; border-radius: 999px; font-size: .74rem; font-weight: 800; white-space: nowrap; background: #f0f3f4; color: #607078; }
+.future-status.healthy { background: #e9f6f1; color: #205a49; }
+.future-status.attention { background: #fff6da; color: #7b5a11; }
+.future-status.exceeded { background: #fff0f0; color: #8f3535; }
+.negative-cell { color: #a43f3f; font-weight: 800; }
+.recurring-panel { margin-top: 22px; }
+.recurring-list { display: grid; gap: 12px; }
+.recurring-card { display: grid; grid-template-columns: minmax(220px, 1.5fr) minmax(130px, .6fr) 90px auto auto; align-items: end; gap: 12px; padding: 15px; border: 1px solid #e1e7e8; border-radius: 14px; background: #fbfcfc; }
+.recurring-card > div { display: grid; gap: 4px; align-self: center; }
+.recurring-card > div span { color: #738087; font-size: .8rem; }
+.recurring-card label { display: grid; gap: 6px; color: #536169; font-size: .78rem; font-weight: 750; }
+.recurring-card input { min-width: 0; width: 100%; padding: 9px 10px; border: 1px solid #cad5d8; border-radius: 9px; }
+.compact-check { align-self: center; display: flex !important; grid-auto-flow: column; align-items: center; gap: 7px !important; }
+.compact-check input { width: auto; }
+@media (max-width: 1050px) { .future-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .recurring-card { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px) { .future-metrics, .recurring-card { grid-template-columns: 1fr; } }

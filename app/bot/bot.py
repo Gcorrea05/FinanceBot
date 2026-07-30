@@ -73,7 +73,7 @@ class FinanceBot:
                 BotCommand(
                     command="gasto",
                     description=(
-                        "Cadastrar uma despesa"
+                        "Registrar um gasto em uma linha"
                     ),
                 ),
                 BotCommand(

@@ -5,7 +5,7 @@ $containerPath = "/app/backups/manual/financebot-$timestamp.db"
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     run `
     --rm `
     --no-deps `

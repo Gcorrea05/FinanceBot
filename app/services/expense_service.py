@@ -75,9 +75,7 @@ class ExpenseService:
         expense = Expense(
             purchase_date=validated.purchase_date,
             purchase_place=validated.purchase_place,
-            purchase_value=float(
-                validated.purchase_value
-            ),
+            purchase_value=validated.purchase_value,
             category_id=category.id,
             payment_method_id=payment_method.id,
             is_installment=(
@@ -103,6 +101,7 @@ class ExpenseService:
                 expense=expense,
                 total=validated.purchase_value,
                 people=validated.shared_people,
+                owner_amount=validated.owner_amount,
             )
 
         return self.expense_repository.add(
@@ -146,6 +145,7 @@ class ExpenseService:
         expense: Expense,
         total,
         people,
+        owner_amount=None,
     ) -> None:
         if self.person_repository is None:
             raise RuntimeError(
@@ -158,6 +158,7 @@ class ExpenseService:
         split = self.shared_splitter.split(
             total=total,
             people=people,
+            owner_amount=owner_amount,
         )
 
         expense.people = [

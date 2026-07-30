@@ -17,7 +17,7 @@ if ($confirmation -ne "RESTAURAR") {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     stop `
     api `
     bot `
@@ -29,7 +29,7 @@ if ($LASTEXITCODE -ne 0) {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     run `
     --rm `
     --no-deps `
@@ -46,7 +46,7 @@ if ($LASTEXITCODE -ne 0) {
 
 docker compose `
     --env-file .env `
-    -f docker-compose.prod.yml `
+    -f compose.yml `
     start `
     api `
     bot `
